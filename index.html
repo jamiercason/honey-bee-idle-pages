@@ -53,7 +53,7 @@
       radial-gradient(circle at top, rgba(255, 246, 201, 0.42), rgba(255, 246, 201, 0) 28%),
       linear-gradient(180deg, rgba(72, 42, 2, 0.18), rgba(20, 11, 0, 0.58)),
       linear-gradient(180deg, #8fc8ff 0%, #dff3ff 42%, #f7f2cd 100%);
-    transition: opacity 0.36s ease, visibility 0.36s ease;
+    transition: opacity 0.9s ease, visibility 0.9s ease;
   }
   #boot-overlay.hidden {
     opacity: 0;
@@ -73,12 +73,24 @@
     color: #ffe6a1;
     font-family: monospace;
     text-align: center;
+    transition: opacity 0.9s ease, transform 0.9s ease;
+  }
+  #boot-overlay.hidden #boot-card {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
   }
   #boot-title {
     color: #fff2bf;
     font-size: 24px;
     letter-spacing: 1px;
     text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+  }
+  #boot-version {
+    margin-top: 8px;
+    color: rgba(255, 229, 161, 0.72);
+    font-size: 10px;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
   }
   #boot-progress-row {
     display: flex;
@@ -355,6 +367,7 @@
 <div id="boot-overlay">
   <div id="boot-card">
     <div id="boot-title">Honey Bee Idle</div>
+    <div id="boot-version">Version --</div>
     <div id="boot-progress-row">
       <div id="boot-progress-track"><div id="boot-progress-fill"></div></div>
       <div id="boot-percent">0%</div>
@@ -470,6 +483,7 @@ function createBootLoader() {
   var fillEl = document.getElementById('boot-progress-fill');
   var percentEl = document.getElementById('boot-percent');
   var lineEl = document.getElementById('boot-line');
+  var versionEl = document.getElementById('boot-version');
   var errorEl = document.getElementById('boot-error');
   var loadingLines = [
     'Grooming the bees for morning flight.',
@@ -564,6 +578,11 @@ function createBootLoader() {
     ensureProgressAnimation();
   }
 
+  function setVersion(versionText) {
+    if (!versionEl) { return; }
+    versionEl.textContent = versionText || 'Version --';
+  }
+
   async function finish(line) {
     clearInterval(intervalId);
     targetProgress = 1;
@@ -571,11 +590,11 @@ function createBootLoader() {
     ensureProgressAnimation();
     await waitForFrames(2);
     var elapsed = performance.now() - startTime;
-    if (elapsed < 1200) {
-      await delay(1200 - elapsed);
+    if (elapsed < 3000) {
+      await delay(3000 - elapsed);
     }
     overlayEl.classList.add('hidden');
-    await delay(360);
+    await delay(900);
     if (overlayEl.parentNode) {
       overlayEl.parentNode.removeChild(overlayEl);
     }
@@ -601,6 +620,7 @@ function createBootLoader() {
 
   return {
     mark: mark,
+    setVersion: setVersion,
     finish: finish,
     fail: fail
   };
@@ -731,6 +751,7 @@ var PRESENTATION = presentationConfigModule.PRESENTATION;
 var LABEL = labelConfigModule.LABEL;
 var STAGE_DEFS = stageDefsModule.STAGE_DEFS;
 var CURRENT_STAGE_ID = stageDefsModule.CURRENT_STAGE_ID;
+bootLoader.setVersion(BUILD_VERSION);
 var clamp01 = mathModule.clamp01;
 var saturate01 = mathModule.saturate01;
 var lerp = mathModule.lerp;
