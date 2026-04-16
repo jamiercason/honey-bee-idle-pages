@@ -1,9 +1,16 @@
 import { createRuntimeTime } from '../core/time.js';
 
-export function initRuntime(game, legacy) {
+export function initRuntime(game, legacy, boot) {
+  function reportBoot(progress, phase, line) {
+    if (boot && boot.mark) {
+      boot.mark(progress, phase, line);
+    }
+  }
+
   var scene = legacy.createScene(legacy.LIGHTING);
   var renderer = legacy.createRenderer(legacy.LIGHTING.EXPOSURE);
   var lightingRig = legacy.createLightingRig(scene);
+  reportBoot(0.80, 'Raising the hive shell', 'Bracing the comb while the morning light settles.');
 
   game.scene.renderer = renderer;
   game.scene.scene = scene;
@@ -45,6 +52,7 @@ export function initRuntime(game, legacy) {
   });
 
   game.state.cells = legacy.initHive();
+  reportBoot(0.84, 'Filling the cells', 'Waxing the hex corners before the workers move in.');
 
   legacy.setLightingRuntime({
     renderer: game.scene.renderer,
@@ -109,6 +117,7 @@ export function initRuntime(game, legacy) {
   game.scene.camTarget.y = legacy.CAM.OPENING_TARGET_Y;
   if (legacy.bindGameAliases) { legacy.bindGameAliases(game); }
   legacy.applyOpeningCameraPose();
+  reportBoot(0.89, 'Framing the first flight', 'Minding the hive entrance and aligning the view.');
 
   game.runtime.time = createRuntimeTime(game.scene.camState.theta, game.scene.camTarget.y);
   if (legacy.bindGameAliases) { legacy.bindGameAliases(game); }
@@ -334,10 +343,12 @@ export function initRuntime(game, legacy) {
   game.ui.previewModal = document.getElementById('preview-modal');
   legacy.installPointerController(game.scene.renderer.domElement);
   legacy.installGestureController(game.scene.renderer.domElement);
+  reportBoot(0.93, 'Briefing the keepers', 'Dusting the pollen off the controls and labels.');
 
   legacy.updateCamera(0, 0);
   legacy.initBees(game.data.currentStage.beeStartCount);
   legacy.initCellLabels();
   legacy.runConservativeAssertions(game);
+  reportBoot(0.97, 'Checking the morning buzz', 'Listening for a clean hive hum.');
   if (legacy.bindGameAliases) { legacy.bindGameAliases(game); }
 }

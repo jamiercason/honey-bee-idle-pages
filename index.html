@@ -45,6 +45,106 @@
       linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.00) 28%, rgba(65,26,0,0.08) 100%);
     opacity: 1; transition: opacity 0.3s ease;
   }
+  #boot-overlay {
+    position: fixed; inset: 0; z-index: 500;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+    background:
+      radial-gradient(circle at top, rgba(255, 246, 201, 0.42), rgba(255, 246, 201, 0) 28%),
+      linear-gradient(180deg, rgba(72, 42, 2, 0.18), rgba(20, 11, 0, 0.58)),
+      linear-gradient(180deg, #8fc8ff 0%, #dff3ff 42%, #f7f2cd 100%);
+    transition: opacity 0.36s ease, visibility 0.36s ease;
+  }
+  #boot-overlay.hidden {
+    opacity: 0;
+    visibility: hidden;
+  }
+  #boot-card {
+    width: min(100%, 320px);
+    padding: 26px 22px 22px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 225, 138, 0.52);
+    background:
+      linear-gradient(180deg, rgba(93, 53, 5, 0.86), rgba(46, 22, 0, 0.90)),
+      radial-gradient(circle at top, rgba(255, 232, 160, 0.22), transparent 58%);
+    box-shadow:
+      0 24px 60px rgba(56, 28, 0, 0.24),
+      inset 0 1px 0 rgba(255, 244, 205, 0.18);
+    color: #ffe6a1;
+    font-family: monospace;
+    text-align: center;
+  }
+  #boot-title {
+    color: #fff2bf;
+    font-size: 24px;
+    letter-spacing: 1px;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.22);
+  }
+  #boot-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  #boot-progress-track {
+    flex: 1 1 auto;
+    height: 12px;
+    border-radius: 999px;
+    overflow: hidden;
+    border: 1px solid rgba(255, 223, 131, 0.32);
+    background: rgba(38, 21, 0, 0.46);
+    box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.22);
+  }
+  #boot-progress-fill {
+    width: 0%;
+    height: 100%;
+    border-radius: 999px;
+    background:
+      linear-gradient(90deg, #df9413 0%, #f7c23b 54%, #fff0a9 100%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 250, 222, 0.38),
+      0 0 16px rgba(255, 205, 88, 0.30);
+  }
+  #boot-percent {
+    flex: 0 0 auto;
+    min-width: 42px;
+    text-align: right;
+    color: #fff0b2;
+    font-size: 12px;
+  }
+  #boot-line {
+    margin-top: 18px;
+    min-height: 36px;
+    color: #fff2c0;
+    font-size: 12px;
+    line-height: 1.5;
+    transition: opacity 0.18s ease, transform 0.18s ease;
+  }
+  #boot-error {
+    margin-top: 14px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 180, 150, 0.28);
+    background: rgba(74, 11, 0, 0.34);
+    color: #ffd7c7;
+    font-size: 11px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  #boot-overlay.failed #boot-progress-fill {
+    background: linear-gradient(90deg, #ab4727 0%, #ff8757 100%);
+  }
+  @media (max-width: 480px) {
+    #boot-card {
+      width: 100%;
+      padding: 24px 18px 20px;
+      border-radius: 22px;
+    }
+    #boot-title {
+      font-size: 22px;
+    }
+  }
 
   /* ---- Summon bar ---- */
   #summon-bar {
@@ -252,6 +352,17 @@
 </style>
 </head>
 <body>
+<div id="boot-overlay">
+  <div id="boot-card">
+    <div id="boot-title">Honey Bee Idle</div>
+    <div id="boot-progress-row">
+      <div id="boot-progress-track"><div id="boot-progress-fill"></div></div>
+      <div id="boot-percent">0%</div>
+    </div>
+    <div id="boot-line"></div>
+    <div id="boot-error" hidden></div>
+  </div>
+</div>
 <div id="vignette"></div>
 <div id="hud"></div>
 
@@ -354,12 +465,158 @@
 </div>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script type="module">
+function createBootLoader() {
+  var overlayEl = document.getElementById('boot-overlay');
+  var fillEl = document.getElementById('boot-progress-fill');
+  var percentEl = document.getElementById('boot-percent');
+  var lineEl = document.getElementById('boot-line');
+  var errorEl = document.getElementById('boot-error');
+  var loadingLines = [
+    'Grooming the bees for morning flight.',
+    'Dusting the pollen baskets.',
+    'Minding the hive while the workers wake up.',
+    'Warming the wax walls.',
+    'Counting sleepy little wings.',
+    'Polishing honey cells.',
+    'Straightening the nectar queues.',
+    'Checking the royal jelly cupboard.',
+    'Sweeping stray petals from the comb.',
+    'Tuning the hum of the hive.',
+    'Untangling forager flight paths.',
+    'Buckling tiny pollen baskets.',
+    'Airing out the nectar store.',
+    'Waxing the hex corners.',
+    'Opening the sunflower shutters.',
+    'Fluffing the brood chamber cushions.'
+  ];
+  var targetProgress = 0;
+  var visualProgress = 0;
+  var lineIndex = 0;
+  var rafId = 0;
+  var intervalId = 0;
+  var startTime = performance.now();
+
+  function delay(ms) {
+    return new Promise(function(resolve) {
+      setTimeout(resolve, ms);
+    });
+  }
+
+  function waitForFrames(count) {
+    return new Promise(function(resolve) {
+      function tick() {
+        if (count <= 0) {
+          resolve();
+          return;
+        }
+        count -= 1;
+        requestAnimationFrame(tick);
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function renderProgress() {
+    fillEl.style.width = (visualProgress * 100).toFixed(1) + '%';
+    percentEl.textContent = Math.round(visualProgress * 100) + '%';
+  }
+
+  function animateProgress() {
+    var delta = targetProgress - visualProgress;
+    if (Math.abs(delta) < 0.002) {
+      visualProgress = targetProgress;
+      renderProgress();
+      rafId = 0;
+      return;
+    }
+    visualProgress += delta * 0.18;
+    renderProgress();
+    rafId = requestAnimationFrame(animateProgress);
+  }
+
+  function ensureProgressAnimation() {
+    if (!rafId) {
+      rafId = requestAnimationFrame(animateProgress);
+    }
+  }
+
+  function nextLoadingLine() {
+    var line = loadingLines[lineIndex % loadingLines.length];
+    lineIndex += 1;
+    return line;
+  }
+
+  function setLine(line) {
+    if (!line) { return; }
+    if (lineEl.textContent === line) { return; }
+    lineEl.style.opacity = '0.4';
+    lineEl.style.transform = 'translateY(2px)';
+    window.setTimeout(function() {
+      lineEl.textContent = line;
+      lineEl.style.opacity = '1';
+      lineEl.style.transform = 'translateY(0)';
+    }, 90);
+  }
+
+  function mark(progress, phase, line) {
+    targetProgress = Math.max(targetProgress, Math.min(progress, 0.99));
+    setLine(line || nextLoadingLine());
+    ensureProgressAnimation();
+  }
+
+  async function finish(line) {
+    clearInterval(intervalId);
+    targetProgress = 1;
+    setLine(line || 'The hive hum is ready.');
+    ensureProgressAnimation();
+    await waitForFrames(2);
+    var elapsed = performance.now() - startTime;
+    if (elapsed < 1200) {
+      await delay(1200 - elapsed);
+    }
+    overlayEl.classList.add('hidden');
+    await delay(360);
+    if (overlayEl.parentNode) {
+      overlayEl.parentNode.removeChild(overlayEl);
+    }
+  }
+
+  function fail(message) {
+    clearInterval(intervalId);
+    targetProgress = 1;
+    setLine('A worker bee flagged a startup snag.');
+    errorEl.hidden = false;
+    errorEl.textContent = String(message || 'Unknown bootstrap error.');
+    overlayEl.classList.add('failed');
+    ensureProgressAnimation();
+  }
+
+  intervalId = window.setInterval(function() {
+    if (overlayEl.classList.contains('hidden') || overlayEl.classList.contains('failed')) { return; }
+    setLine(nextLoadingLine());
+  }, 280);
+
+  renderProgress();
+  setLine('Unfastening the honey gates.');
+
+  return {
+    mark: mark,
+    finish: finish,
+    fail: fail
+  };
+}
+
+var bootLoader = createBootLoader();
+
 function showBootstrapError(errorLike) {
   var hudEl = document.getElementById('hud');
   if (!hudEl) { return; }
   var message = String(errorLike && errorLike.stack ? errorLike.stack : errorLike);
   if (window.location.protocol === 'file:' && message.indexOf('Failed to fetch dynamically imported module') !== -1) {
     message = 'This browser blocked ES module loading from file://\nOpen the game through a local static server instead:\nhttp://127.0.0.1:8125/src/index.html';
+  }
+  if (bootLoader && bootLoader.fail) {
+    bootLoader.fail(message);
   }
   hudEl.style.whiteSpace = 'pre-wrap';
   hudEl.style.maxWidth = 'calc(100vw - 32px)';
@@ -389,6 +646,7 @@ async function resolveBootstrapModules() {
 }
 
 var bootstrapModules = await resolveBootstrapModules();
+bootLoader.mark(0.10, 'Finding the combs', 'Counting the combs in the morning light.');
 var moduleRoot = bootstrapModules.moduleRoot;
 var enumsModule = bootstrapModules.enumsModule;
 var configModule = await import(moduleRoot + 'config/config.js');
@@ -403,6 +661,7 @@ var mathModule = await import(moduleRoot + 'utils/math.js');
 var anglesModule = await import(moduleRoot + 'utils/angles.js');
 var canvasModule = await import(moduleRoot + 'utils/canvas.js');
 var colorModule = await import(moduleRoot + 'utils/color.js');
+bootLoader.mark(0.24, 'Warming the wax', 'Grooming the bees before shift change.');
 var boardQueriesModule = await import(moduleRoot + 'board/boardQueries.js');
 var boardGraphModule = await import(moduleRoot + 'board/boardGraph.js');
 var cellStateModule = await import(moduleRoot + 'board/cellState.js');
@@ -422,6 +681,7 @@ var beeMergingModule = await import(moduleRoot + 'bees/beeMerging.js');
 var beeStateMachineModule = await import(moduleRoot + 'bees/beeStateMachine.js');
 var beePoseModule = await import(moduleRoot + 'bees/beePose.js');
 var beeVisualStateModule = await import(moduleRoot + 'bees/beeVisualState.js');
+bootLoader.mark(0.42, 'Assigning the workers', 'Minding the hive while the nectar routes are drawn.');
 var rendererModule = await import(moduleRoot + 'scene/renderer.js');
 var sceneModule = await import(moduleRoot + 'scene/scene.js');
 var cameraControllerModule = await import(moduleRoot + 'scene/cameraController.js');
@@ -435,6 +695,7 @@ var beeFxModule = await import(moduleRoot + 'scene/beeFx.js');
 var labelsModule = await import(moduleRoot + 'scene/labels.js');
 var debugDrawModule = await import(moduleRoot + 'scene/debugDraw.js');
 var previewViewerModule = await import(moduleRoot + 'scene/previewViewer.js');
+bootLoader.mark(0.54, 'Lighting the hive', 'Dusting stray pollen from the landing pads.');
 var inputStateModule = await import(moduleRoot + 'input/inputState.js');
 var raycastModule = await import(moduleRoot + 'input/raycast.js');
 var targetingModule = await import(moduleRoot + 'input/targeting.js');
@@ -449,6 +710,7 @@ var previewModalModule = await import(moduleRoot + 'ui/previewModal.js');
 var selectorsModule = await import(moduleRoot + 'core/selectors.js');
 var assertionsModule = await import(moduleRoot + 'core/assertions.js');
 var mainModule = await import(moduleRoot + 'main.js');
+bootLoader.mark(0.64, 'Charting flight paths', 'Straightening the nectar queues for takeoff.');
 
 var TARGET_MODE = enumsModule.TARGET_MODE;
 var BOOST_TYPE = enumsModule.BOOST_TYPE;
@@ -1667,7 +1929,7 @@ var legacy = {
 };
 
 try {
-  game = main(legacy);
+  game = await main(legacy, bootLoader);
 } catch (error) {
   console.error(error);
   showBootstrapError(error);
