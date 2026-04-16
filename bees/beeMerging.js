@@ -12,6 +12,52 @@ var triggerMergeFxRef = function() {};
 var queueBurstCallbackRef = function() {};
 var setMergeToastRef = function() {};
 var setBuildingToastRef = function() {};
+var mergedBodyAnchorWorld = new THREE.Vector3();
+var mergedAnchorDelta = new THREE.Vector3();
+
+function getVisibleBeeBodyAnchorPos(bee, out) {
+  if (bee && bee.mesh && bee.mesh.userData && bee.mesh.userData.bodyAnchor) {
+    bee.mesh.userData.bodyAnchor.getWorldPosition(out);
+  } else if (bee && bee.mesh) {
+    out.copy(bee.mesh.position);
+  } else if (bee) {
+    out.copy(bee.pos);
+  } else {
+    out.set(0, 0, 0);
+  }
+  return out;
+}
+
+function pinBeeToVisibleBodyAnchor(bee, visibleAnchorPos) {
+  if (!bee || !bee.mesh || !visibleAnchorPos) { return; }
+  getVisibleBeeBodyAnchorPos(bee, mergedBodyAnchorWorld);
+  mergedAnchorDelta.copy(visibleAnchorPos).sub(mergedBodyAnchorWorld);
+  bee.mesh.position.add(mergedAnchorDelta);
+  bee.pos.copy(bee.mesh.position);
+  bee.origin.copy(bee.mesh.position);
+  bee.targetPos.copy(bee.mesh.position);
+  bee.mergeAnchorPos.copy(bee.mesh.position);
+}
+
+function resetMergedBeeMotionState(bee, visibleAnchorPos, freezeWithAssignment) {
+  if (!bee) { return; }
+  bee.travelT = 1.0;
+  bee.travelDur = 0.0001;
+  bee.targetCellId = null;
+  bee.workTargetCellId = freezeWithAssignment ? bee.workTargetCellId : null;
+  bee.forcedWorkTarget = null;
+  bee.carryNectar = 0;
+  bee.exitReverse = 0.0;
+  bee.landedTheta = null;
+  bee.gatherRouteRadius = 0;
+  bee.gatherRouteHeight = 0;
+  bee.gatherRouteBump = 1.0;
+  bee.gatherRouteSide = 0;
+  bee.gatherRouteCurve = 0;
+  bee.gatherPhase = freezeWithAssignment ? null : 'merge_resolve_hover';
+  pinBeeToVisibleBodyAnchor(bee, visibleAnchorPos);
+  bee.lastFlightPos.copy(bee.pos);
+}
 
 export function setBeeMergingRuntime(runtime) {
   updateMergeTargetHighlightsRef = runtime && runtime.updateMergeTargetHighlights ? runtime.updateMergeTargetHighlights : updateMergeTargetHighlightsRef;
@@ -25,11 +71,7 @@ export function setBeeMergingRuntime(runtime) {
 export function mergeBees(beeA, beeB) {
   var newLevel = beeA.level + 1;
   var anchorPos = new THREE.Vector3();
-  if (beeB && beeB.mesh && beeB.mesh.userData && beeB.mesh.userData.bodyAnchor) {
-    beeB.mesh.userData.bodyAnchor.getWorldPosition(anchorPos);
-  } else {
-    anchorPos.copy(beeB.pos);
-  }
+  getVisibleBeeBodyAnchorPos(beeB, anchorPos);
   var mergeAssignment = captureMergeAssignment(beeB);
   registerRoyalRush();
   function flashWhite(bee) {
@@ -51,24 +93,26 @@ export function mergeBees(beeA, beeB) {
     });
     var mergedWorkRate = getBeeWorkRateForLevel(newLevel);
     if (newBee) {
+      resetMergedBeeMotionState(newBee, anchorPos, !!mergeAssignment);
       newBee.mergeSurgeTimer = CONFIG.MERGE_SURGE_DURATION;
       if (mergeAssignment) {
-        if (applyMergeAssignment(newBee, mergeAssignment, { anchorWorldPos: anchorPos })) {
+        if (applyMergeAssignment(newBee, mergeAssignment, { anchorWorldPos: newBee.mergeAnchorPos })) {
           newBee.mergePendingAssignment = null;
         }
-      } else {
-        newBee.mergeAnchorPos.copy(anchorPos);
       }
       newBee.mesh.scale.setScalar(0.1);
+      pinBeeToVisibleBodyAnchor(newBee, anchorPos);
       var popT = 0;
       var baseScale = newBee.baseScale || (1.0 + (newLevel - 1) * 0.06);
       function popAnim() {
         popT += 0.12;
         if (popT >= 1.0) {
           newBee.mesh.scale.setScalar(baseScale);
+          pinBeeToVisibleBodyAnchor(newBee, anchorPos);
           return;
         }
         newBee.mesh.scale.setScalar(baseScale * (1.0 + Math.sin(popT * Math.PI) * 0.45));
+        pinBeeToVisibleBodyAnchor(newBee, anchorPos);
         queueBurstCallbackRef(function() { popAnim(); });
       }
       queueBurstCallbackRef(function() { popAnim(); });

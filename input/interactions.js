@@ -9,9 +9,10 @@ import { assignBeeToCell, setBeeGathererRole } from '../bees/beeAssignments.js';
 import { mergeBees } from '../bees/beeMerging.js';
 import { refreshCellMaterial } from '../scene/materials.js';
 import { updateBoostGhost } from '../ui/summonBar.js';
+import { HIVE } from '../config/hiveConfig.js';
 import { BOOST_TARGET_TOLERANCE_PX, POINTER_INTENT_STATE } from '../config/inputConfig.js';
 import { longPressState, pointer } from './inputState.js';
-import { getBeeNearScreen, getCellAtScreen } from './raycast.js';
+import { getBeeNearScreen, getCellAtScreen, getScreenRay } from './raycast.js';
 import { pickFreshBeeCandidate, resolveActiveDragTargets, resolveReleaseTarget } from './targeting.js';
 
 var THREE = globalThis.THREE;
@@ -25,8 +26,86 @@ var flashCellRef = function() {};
 var markCameraInteractionRef = function() {};
 var applyRoyalJellyToBeeRef = function() { return false; };
 
-var dragPreviewNDC = new THREE.Vector3();
-var dragPreviewTowardCamera = new THREE.Vector3();
+var dragPreviewCandidate = new THREE.Vector3();
+var dragPreviewFallback = new THREE.Vector3();
+var dragPreviewCameraDir = new THREE.Vector2();
+var dragPreviewPointDir = new THREE.Vector2();
+
+var DRAG_PREVIEW_FRONT_DOT_MIN = 0.08;
+
+function getDragPreviewSurfaceRadius(bee) {
+  var bodyRadius = (bee && bee.interactionRadius) ? bee.interactionRadius : 0.34;
+  return HIVE.CYLINDER_RADIUS + HIVE.HEX_DEPTH + Math.max(0.26, bodyRadius * 0.95) + 0.10;
+}
+
+function getCameraFrontDir(camera) {
+  dragPreviewCameraDir.set(camera.position.x, camera.position.z);
+  if (dragPreviewCameraDir.lengthSq() < 0.0001) {
+    dragPreviewCameraDir.set(0, 1);
+  } else {
+    dragPreviewCameraDir.normalize();
+  }
+  return dragPreviewCameraDir;
+}
+
+function isValidDragPreviewPos(pos, camera, dragRadius) {
+  if (!pos || !camera) { return false; }
+  var radial = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
+  if (radial < dragRadius - 0.0001) { return false; }
+  dragPreviewPointDir.set(pos.x, pos.z);
+  if (dragPreviewPointDir.lengthSq() < 0.0001) { return false; }
+  dragPreviewPointDir.normalize();
+  return dragPreviewPointDir.dot(getCameraFrontDir(camera)) >= DRAG_PREVIEW_FRONT_DOT_MIN;
+}
+
+function projectToVisibleDragSurface(sourcePos, camera, dragRadius, out) {
+  var y = sourcePos ? sourcePos.y : 0;
+  getCameraFrontDir(camera);
+  if (sourcePos) {
+    dragPreviewPointDir.set(sourcePos.x, sourcePos.z);
+  } else {
+    dragPreviewPointDir.set(dragPreviewCameraDir.x, dragPreviewCameraDir.y);
+  }
+  if (dragPreviewPointDir.lengthSq() < 0.0001) {
+    dragPreviewPointDir.set(dragPreviewCameraDir.x, dragPreviewCameraDir.y);
+  } else {
+    dragPreviewPointDir.normalize();
+  }
+  if (dragPreviewPointDir.dot(dragPreviewCameraDir) < DRAG_PREVIEW_FRONT_DOT_MIN) {
+    dragPreviewPointDir.lerp(dragPreviewCameraDir, 0.85).normalize();
+    if (dragPreviewPointDir.dot(dragPreviewCameraDir) < DRAG_PREVIEW_FRONT_DOT_MIN) {
+      dragPreviewPointDir.copy(dragPreviewCameraDir);
+    }
+  }
+  out.set(dragPreviewPointDir.x * dragRadius, y, dragPreviewPointDir.y * dragRadius);
+  return out;
+}
+
+function intersectPreviewCylinder(ray, dragRadius, out) {
+  var dx = ray.direction.x;
+  var dz = ray.direction.z;
+  var ox = ray.origin.x;
+  var oz = ray.origin.z;
+  var a = dx * dx + dz * dz;
+  if (a < 0.000001) { return false; }
+  var b = 2 * (ox * dx + oz * dz);
+  var c = ox * ox + oz * oz - dragRadius * dragRadius;
+  var disc = b * b - 4 * a * c;
+  if (disc < 0) { return false; }
+
+  var sqrtDisc = Math.sqrt(disc);
+  var invDenom = 1 / (2 * a);
+  var t0 = (-b - sqrtDisc) * invDenom;
+  var t1 = (-b + sqrtDisc) * invDenom;
+  var t = Infinity;
+
+  if (t0 > 0.0001) { t = t0; }
+  if (t1 > 0.0001 && t1 < t) { t = t1; }
+  if (!isFinite(t)) { return false; }
+
+  out.copy(ray.origin).addScaledVector(ray.direction, t);
+  return true;
+}
 
 export function setInteractionsRuntime(runtime) {
   stateRef = runtime && runtime.state ? runtime.state : stateRef;
@@ -95,17 +174,21 @@ export function updateBeeDragPreviewPos(bee, screenX, screenY) {
   }
 
   var camera = getCameraRef();
+  var dragRadius = getDragPreviewSurfaceRadius(bee);
   if (!pointer.dragVisualPos) { pointer.dragVisualPos = new THREE.Vector3(); }
-  dragPreviewNDC.copy(bee.pos).project(camera);
-  dragPreviewNDC.x = (screenX / window.innerWidth) * 2 - 1;
-  dragPreviewNDC.y = -(screenY / window.innerHeight) * 2 + 1;
-  pointer.dragVisualPos.copy(dragPreviewNDC).unproject(camera);
 
-  dragPreviewTowardCamera.copy(camera.position).sub(pointer.dragVisualPos);
-  if (dragPreviewTowardCamera.lengthSq() > 0.0001) {
-    dragPreviewTowardCamera.normalize();
-    pointer.dragVisualPos.addScaledVector(dragPreviewTowardCamera, 0.18);
+  if (intersectPreviewCylinder(getScreenRay(screenX, screenY), dragRadius, dragPreviewCandidate) &&
+      isValidDragPreviewPos(dragPreviewCandidate, camera, dragRadius)) {
+    pointer.dragVisualPos.copy(dragPreviewCandidate);
+    return pointer.dragVisualPos;
   }
+
+  if (isValidDragPreviewPos(pointer.dragVisualPos, camera, dragRadius)) {
+    return pointer.dragVisualPos;
+  }
+
+  projectToVisibleDragSurface(bee.pos || bee.mesh.position, camera, dragRadius, dragPreviewFallback);
+  pointer.dragVisualPos.copy(dragPreviewFallback);
   return pointer.dragVisualPos;
 }
 
