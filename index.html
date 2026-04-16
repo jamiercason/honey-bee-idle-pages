@@ -371,12 +371,6 @@ window.addEventListener('error', function(event) {
   showBootstrapError(event && event.error ? event.error : (event && event.message ? event.message : event));
 });
 
-var MODULE_BUILD_ID = '2026-04-16-2';
-
-function importModule(moduleRoot, path) {
-  return import(moduleRoot + path + '?v=' + MODULE_BUILD_ID);
-}
-
 async function resolveBootstrapModules() {
   var candidates = ['./', './src/'];
   var lastError = null;
@@ -385,7 +379,7 @@ async function resolveBootstrapModules() {
     try {
       return {
         moduleRoot: moduleRoot,
-        enumsModule: await importModule(moduleRoot, 'data/enums.js')
+        enumsModule: await import(moduleRoot + 'data/enums.js')
       };
     } catch (error) {
       lastError = error;
@@ -397,64 +391,64 @@ async function resolveBootstrapModules() {
 var bootstrapModules = await resolveBootstrapModules();
 var moduleRoot = bootstrapModules.moduleRoot;
 var enumsModule = bootstrapModules.enumsModule;
-var configModule = await importModule(moduleRoot, 'config/config.js');
-var hiveConfigModule = await importModule(moduleRoot, 'config/hiveConfig.js');
-var cameraConfigModule = await importModule(moduleRoot, 'config/cameraConfig.js');
-var lightingConfigModule = await importModule(moduleRoot, 'config/lightingConfig.js');
-var sceneArtConfigModule = await importModule(moduleRoot, 'config/sceneArtConfig.js');
-var presentationConfigModule = await importModule(moduleRoot, 'config/presentationConfig.js');
-var labelConfigModule = await importModule(moduleRoot, 'config/labelConfig.js');
-var stageDefsModule = await importModule(moduleRoot, 'data/stageDefs.js');
-var mathModule = await importModule(moduleRoot, 'utils/math.js');
-var anglesModule = await importModule(moduleRoot, 'utils/angles.js');
-var canvasModule = await importModule(moduleRoot, 'utils/canvas.js');
-var colorModule = await importModule(moduleRoot, 'utils/color.js');
-var boardQueriesModule = await importModule(moduleRoot, 'board/boardQueries.js');
-var boardGraphModule = await importModule(moduleRoot, 'board/boardGraph.js');
-var cellStateModule = await importModule(moduleRoot, 'board/cellState.js');
-var stageValidationModule = await importModule(moduleRoot, 'board/stageValidation.js');
-var boardBuilderModule = await importModule(moduleRoot, 'board/boardBuilder.js');
-var boostsModule = await importModule(moduleRoot, 'economy/boosts.js');
-var rewardsModule = await importModule(moduleRoot, 'economy/rewards.js');
-var buildingsModule = await importModule(moduleRoot, 'economy/buildings.js');
-var gatesModule = await importModule(moduleRoot, 'economy/gates.js');
-var economyModule = await importModule(moduleRoot, 'economy/economy.js');
-var beeQueriesModule = await importModule(moduleRoot, 'bees/beeQueries.js');
-var beeMovementModule = await importModule(moduleRoot, 'bees/beeMovement.js');
-var beeGatheringModule = await importModule(moduleRoot, 'bees/beeGathering.js');
-var beeAssignmentsModule = await importModule(moduleRoot, 'bees/beeAssignments.js');
-var beeFactoryModule = await importModule(moduleRoot, 'bees/beeFactory.js');
-var beeMergingModule = await importModule(moduleRoot, 'bees/beeMerging.js');
-var beeStateMachineModule = await importModule(moduleRoot, 'bees/beeStateMachine.js');
-var beePoseModule = await importModule(moduleRoot, 'bees/beePose.js');
-var beeVisualStateModule = await importModule(moduleRoot, 'bees/beeVisualState.js');
-var rendererModule = await importModule(moduleRoot, 'scene/renderer.js');
-var sceneModule = await importModule(moduleRoot, 'scene/scene.js');
-var cameraControllerModule = await importModule(moduleRoot, 'scene/cameraController.js');
-var sceneArtModule = await importModule(moduleRoot, 'scene/sceneArt.js');
-var lightingModule = await importModule(moduleRoot, 'scene/lighting.js');
-var hiveMeshesModule = await importModule(moduleRoot, 'scene/hiveMeshes.js');
-var texturesModule = await importModule(moduleRoot, 'scene/textures.js');
-var materialsModule = await importModule(moduleRoot, 'scene/materials.js');
-var cellFxModule = await importModule(moduleRoot, 'scene/cellFx.js');
-var beeFxModule = await importModule(moduleRoot, 'scene/beeFx.js');
-var labelsModule = await importModule(moduleRoot, 'scene/labels.js');
-var debugDrawModule = await importModule(moduleRoot, 'scene/debugDraw.js');
-var previewViewerModule = await importModule(moduleRoot, 'scene/previewViewer.js');
-var inputStateModule = await importModule(moduleRoot, 'input/inputState.js');
-var raycastModule = await importModule(moduleRoot, 'input/raycast.js');
-var targetingModule = await importModule(moduleRoot, 'input/targeting.js');
-var interactionsModule = await importModule(moduleRoot, 'input/interactions.js');
-var pointerControllerModule = await importModule(moduleRoot, 'input/pointerController.js');
-var gestureControllerModule = await importModule(moduleRoot, 'input/gestureController.js');
-var hudModule = await importModule(moduleRoot, 'ui/hud.js');
-var summonBarModule = await importModule(moduleRoot, 'ui/summonBar.js');
-var toastsModule = await importModule(moduleRoot, 'ui/toasts.js');
-var debugPanelModule = await importModule(moduleRoot, 'ui/debugPanel.js');
-var previewModalModule = await importModule(moduleRoot, 'ui/previewModal.js');
-var selectorsModule = await importModule(moduleRoot, 'core/selectors.js');
-var assertionsModule = await importModule(moduleRoot, 'core/assertions.js');
-var mainModule = await importModule(moduleRoot, 'main.js');
+var configModule = await import(moduleRoot + 'config/config.js');
+var hiveConfigModule = await import(moduleRoot + 'config/hiveConfig.js');
+var cameraConfigModule = await import(moduleRoot + 'config/cameraConfig.js');
+var lightingConfigModule = await import(moduleRoot + 'config/lightingConfig.js');
+var sceneArtConfigModule = await import(moduleRoot + 'config/sceneArtConfig.js');
+var presentationConfigModule = await import(moduleRoot + 'config/presentationConfig.js');
+var labelConfigModule = await import(moduleRoot + 'config/labelConfig.js');
+var stageDefsModule = await import(moduleRoot + 'data/stageDefs.js');
+var mathModule = await import(moduleRoot + 'utils/math.js');
+var anglesModule = await import(moduleRoot + 'utils/angles.js');
+var canvasModule = await import(moduleRoot + 'utils/canvas.js');
+var colorModule = await import(moduleRoot + 'utils/color.js');
+var boardQueriesModule = await import(moduleRoot + 'board/boardQueries.js');
+var boardGraphModule = await import(moduleRoot + 'board/boardGraph.js');
+var cellStateModule = await import(moduleRoot + 'board/cellState.js');
+var stageValidationModule = await import(moduleRoot + 'board/stageValidation.js');
+var boardBuilderModule = await import(moduleRoot + 'board/boardBuilder.js');
+var boostsModule = await import(moduleRoot + 'economy/boosts.js');
+var rewardsModule = await import(moduleRoot + 'economy/rewards.js');
+var buildingsModule = await import(moduleRoot + 'economy/buildings.js');
+var gatesModule = await import(moduleRoot + 'economy/gates.js');
+var economyModule = await import(moduleRoot + 'economy/economy.js');
+var beeQueriesModule = await import(moduleRoot + 'bees/beeQueries.js');
+var beeMovementModule = await import(moduleRoot + 'bees/beeMovement.js');
+var beeGatheringModule = await import(moduleRoot + 'bees/beeGathering.js');
+var beeAssignmentsModule = await import(moduleRoot + 'bees/beeAssignments.js');
+var beeFactoryModule = await import(moduleRoot + 'bees/beeFactory.js');
+var beeMergingModule = await import(moduleRoot + 'bees/beeMerging.js');
+var beeStateMachineModule = await import(moduleRoot + 'bees/beeStateMachine.js');
+var beePoseModule = await import(moduleRoot + 'bees/beePose.js');
+var beeVisualStateModule = await import(moduleRoot + 'bees/beeVisualState.js');
+var rendererModule = await import(moduleRoot + 'scene/renderer.js');
+var sceneModule = await import(moduleRoot + 'scene/scene.js');
+var cameraControllerModule = await import(moduleRoot + 'scene/cameraController.js');
+var sceneArtModule = await import(moduleRoot + 'scene/sceneArt.js');
+var lightingModule = await import(moduleRoot + 'scene/lighting.js');
+var hiveMeshesModule = await import(moduleRoot + 'scene/hiveMeshes.js');
+var texturesModule = await import(moduleRoot + 'scene/textures.js');
+var materialsModule = await import(moduleRoot + 'scene/materials.js');
+var cellFxModule = await import(moduleRoot + 'scene/cellFx.js');
+var beeFxModule = await import(moduleRoot + 'scene/beeFx.js');
+var labelsModule = await import(moduleRoot + 'scene/labels.js');
+var debugDrawModule = await import(moduleRoot + 'scene/debugDraw.js');
+var previewViewerModule = await import(moduleRoot + 'scene/previewViewer.js');
+var inputStateModule = await import(moduleRoot + 'input/inputState.js');
+var raycastModule = await import(moduleRoot + 'input/raycast.js');
+var targetingModule = await import(moduleRoot + 'input/targeting.js');
+var interactionsModule = await import(moduleRoot + 'input/interactions.js');
+var pointerControllerModule = await import(moduleRoot + 'input/pointerController.js');
+var gestureControllerModule = await import(moduleRoot + 'input/gestureController.js');
+var hudModule = await import(moduleRoot + 'ui/hud.js');
+var summonBarModule = await import(moduleRoot + 'ui/summonBar.js');
+var toastsModule = await import(moduleRoot + 'ui/toasts.js');
+var debugPanelModule = await import(moduleRoot + 'ui/debugPanel.js');
+var previewModalModule = await import(moduleRoot + 'ui/previewModal.js');
+var selectorsModule = await import(moduleRoot + 'core/selectors.js');
+var assertionsModule = await import(moduleRoot + 'core/assertions.js');
+var mainModule = await import(moduleRoot + 'main.js');
 
 var TARGET_MODE = enumsModule.TARGET_MODE;
 var BOOST_TYPE = enumsModule.BOOST_TYPE;
