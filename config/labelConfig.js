@@ -1,0 +1,6 @@
+export var LABEL = {
+  CELL_SIZE: 256,
+  BEE_SIZE: 144,
+  CELL_WORLD: 0.95,
+  BEE_WORLD: 0.44
+};

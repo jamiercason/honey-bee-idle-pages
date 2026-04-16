@@ -1,0 +1,1677 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Honey Bee Idle</title>
+<style>
+  :root {
+    --ui-honey: #ffd566;
+    --ui-honey-deep: #9a5609;
+    --ui-honey-border: #ffcb52;
+    --ui-cyan: #bceeff;
+    --ui-cyan-deep: #0f4c78;
+    --ui-panel-top: rgba(76, 42, 4, 0.24);
+    --ui-panel-bottom: rgba(46, 22, 0, 0.10);
+    --ui-panel-border: rgba(255, 212, 94, 0.34);
+    --ui-shadow: 0 12px 28px rgba(67, 34, 0, 0.18);
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    width: 100%; height: 100%;
+    background:
+      linear-gradient(180deg, #90c8ff 0%, #c7e7ff 26%, #eef8ff 44%, #d8e9a3 72%, #7eb14e 100%);
+    overflow: hidden;
+    touch-action: none;
+  }
+  canvas { display: block; width: 100% !important; height: 100% !important; }
+  #hud {
+    position: fixed; top: 16px; left: 16px;
+    color: #ffd25e; font-family: monospace; font-size: 11px;
+    line-height: 1.7; pointer-events: none;
+    text-shadow: 0 1px 0 rgba(60,25,0,0.55), 0 0 10px rgba(73,33,0,0.48);
+    opacity: 0.92;
+    padding: 10px 12px;
+    border-radius: 18px;
+    border: 1px solid rgba(255, 223, 151, 0.22);
+    background: linear-gradient(180deg, rgba(83,42,2,0.14), rgba(83,42,2,0.03));
+    backdrop-filter: blur(8px) saturate(1.08);
+    box-shadow: 0 10px 26px rgba(72,35,0,0.08);
+  }
+  #vignette {
+    position: fixed; inset: 0; pointer-events: none;
+    background:
+      radial-gradient(ellipse at center, rgba(255,247,221,0.00) 42%, rgba(255,174,66,0.12) 76%, rgba(87,41,0,0.18) 100%),
+      linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.00) 28%, rgba(65,26,0,0.08) 100%);
+    opacity: 1; transition: opacity 0.3s ease;
+  }
+
+  /* ---- Summon bar ---- */
+  #summon-bar {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+    display: flex; align-items: center; gap: 10px;
+    z-index: 150; pointer-events: auto;
+    padding: 12px 14px;
+    border-radius: 22px;
+    border: 1px solid var(--ui-panel-border);
+    background: linear-gradient(180deg, var(--ui-panel-top), var(--ui-panel-bottom));
+    backdrop-filter: blur(12px) saturate(1.06);
+    box-shadow: var(--ui-shadow);
+  }
+  #boost-bar {
+    display: flex; align-items: center; gap: 8px;
+    padding-right: 2px;
+  }
+  #summon-btn {
+    background: linear-gradient(180deg, rgba(123,68,6,0.92), rgba(82,39,0,0.94));
+    border: 2px solid #ffcb52;
+    color: #ffd566; font-family: monospace; font-size: 13px;
+    padding: 10px 18px; border-radius: 12px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    transition: background 0.12s, opacity 0.12s, transform 0.12s, box-shadow 0.12s;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgba(255,238,184,0.18),
+      0 8px 20px rgba(95,44,0,0.18);
+  }
+  #summon-btn:active  { background: linear-gradient(180deg, rgba(136,78,11,0.96), rgba(92,44,0,0.98)); transform: translateY(1px); }
+  #summon-btn.disabled { opacity: 0.42; cursor: default; }
+  #spawn-timer-bar {
+    width: 98px; height: 10px; background: rgba(104,73,10,0.20);
+    border-radius: 999px; overflow: hidden; border: 1px solid rgba(255,215,100,0.46);
+    box-shadow: inset 0 2px 6px rgba(70,30,0,0.22);
+  }
+  #spawn-timer-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #e39f15, #ffd451 68%, #fff0ab 100%);
+    width: 0%; transition: none; border-radius: 999px;
+  }
+  .boost-btn {
+    min-width: 88px;
+    background: linear-gradient(180deg, rgba(13,66,102,0.92), rgba(5,34,58,0.94)); border: 2px solid #9be7ff;
+    color: #bceeff; font-family: monospace; font-size: 12px;
+    padding: 10px 12px; border-radius: 12px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent; touch-action: none;
+    transition: background 0.12s, opacity 0.12s, transform 0.12s;
+    white-space: nowrap;
+    box-shadow:
+      inset 0 1px 0 rgba(240,255,255,0.18),
+      0 8px 20px rgba(12,48,76,0.18);
+  }
+  .boost-btn:active { background: linear-gradient(180deg, rgba(16,83,125,0.96), rgba(6,41,68,0.98)); transform: translateY(1px); }
+  .boost-btn.disabled { opacity: 0.38; }
+  .boost-btn.ready { box-shadow: inset 0 1px 0 rgba(240,255,255,0.18), 0 0 18px rgba(123,233,255,0.22), 0 10px 24px rgba(12,48,76,0.20); }
+  #boost-drag-ghost {
+    position: fixed;
+    width: 58px; height: 58px; margin-left: -29px; margin-top: -29px;
+    border-radius: 50%;
+    border: 2px solid #7be9ff;
+    background: radial-gradient(circle at 32% 32%, rgba(255,255,255,0.92), rgba(123,233,255,0.9) 38%, rgba(18,92,120,0.86) 72%, rgba(4,15,20,0.0) 100%);
+    color: #041018;
+    font: 700 11px/58px monospace;
+    text-align: center;
+    box-shadow: 0 0 22px rgba(123,233,255,0.45);
+    pointer-events: none;
+    z-index: 260;
+    display: none;
+    transform: translate3d(-9999px, -9999px, 0) scale(1);
+  }
+
+  #preview-modal {
+    display: none;
+    position: fixed; inset: 0; z-index: 300;
+    background:
+      linear-gradient(180deg, rgba(151,196,236,0.18), rgba(33,18,0,0.82)),
+      rgba(6,3,0,0.78);
+    flex-direction: column; align-items: center; justify-content: flex-start;
+    backdrop-filter: blur(14px);
+  }
+  #preview-modal.open { display: flex; }
+  #preview-topbar {
+    width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: 12px 16px; box-sizing: border-box;
+    border-bottom: 1px solid rgba(255, 212, 94, 0.22);
+    background: linear-gradient(180deg, rgba(60,32,0,0.28), rgba(25,12,0,0.12));
+  }
+  #preview-title {
+    color: #ffd15e; font-family: monospace; font-size: 14px; letter-spacing: 2px;
+    text-transform: uppercase;
+    text-shadow: 0 1px 0 rgba(69,34,0,0.45);
+  }
+  #preview-close {
+    background: linear-gradient(180deg, rgba(101,58,7,0.90), rgba(65,31,0,0.94));
+    border: 2px solid #ffcc56; color: #ffd15e;
+    font-family: monospace; font-size: 13px; padding: 6px 12px;
+    cursor: pointer; border-radius: 12px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  #preview-canvas-wrap {
+    flex: 1; width: 100%; position: relative; overflow: hidden;
+  }
+  #preview-canvas {
+    display: block; width: 100%; height: 100%;
+  }
+  #preview-controls {
+    width: 100%; padding: 12px 10px 20px;
+    display: flex; flex-wrap: wrap; gap: 8px;
+    justify-content: center; box-sizing: border-box;
+    border-top: 1px solid rgba(255, 212, 94, 0.22);
+    background: linear-gradient(180deg, rgba(60,32,0,0.14), rgba(25,12,0,0.18));
+  }
+  .prev-lvl-btn {
+    padding: 9px 14px; font-family: monospace; font-size: 12px;
+    border-radius: 12px; cursor: pointer; border: 1px solid rgba(255, 211, 96, 0.72);
+    background: linear-gradient(180deg, rgba(49,27,0,0.86), rgba(22,12,0,0.92)); color: #f5c842;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+    transition: background 0.15s, color 0.15s, transform 0.15s;
+  }
+  .prev-lvl-btn.active { background: linear-gradient(180deg, #ffd76a, #ebb437); color: #231100; }
+  .prev-lvl-btn:active { background: linear-gradient(180deg, rgba(65,36,0,0.92), rgba(34,18,0,0.96)); transform: translateY(1px); }
+  #preview-info {
+    color: #e8c77b; font-family: monospace; font-size: 11px;
+    text-align: center; padding: 4px 10px 0;
+    letter-spacing: 1px;
+    text-shadow: 0 1px 0 rgba(47,22,0,0.45);
+  }
+
+  #debug-toggle {
+    position: fixed; top: 16px; right: 16px;
+    background: linear-gradient(180deg, rgba(61,34,0,0.84), rgba(29,14,0,0.90)); border: 2px solid #ffcc56;
+    color: #ffd868; font-family: monospace; font-size: 12px;
+    padding: 7px 12px; cursor: pointer; border-radius: 12px;
+    z-index: 200; -webkit-tap-highlight-color: transparent;
+    box-shadow: 0 8px 18px rgba(62,30,0,0.14);
+  }
+  #debug-panel {
+    display: none;
+    position: fixed; top: 0; right: 0;
+    width: 270px; height: 100vh; overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+    background: linear-gradient(180deg, rgba(47,24,0,0.92), rgba(19,10,0,0.95)); border-left: 2px solid rgba(255, 209, 96, 0.86);
+    padding: 52px 10px 20px; z-index: 199;
+    font-family: monospace; font-size: 11px; color: #e8c87a;
+    box-sizing: border-box;
+    touch-action: pan-y;
+    backdrop-filter: blur(14px) saturate(1.05);
+    box-shadow: -16px 0 40px rgba(42, 20, 0, 0.16);
+  }
+  #debug-panel.open { display: block; }
+  .dbg-section {
+    color: #f5c842; font-size: 10px; letter-spacing: 1px;
+    margin: 12px 0 5px; text-transform: uppercase;
+    border-bottom: 1px solid #3a2a00; padding-bottom: 3px;
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; user-select: none;
+  }
+  .dbg-section::after {
+    content: '▾';
+    color: rgba(245,200,66,0.85);
+    font-size: 12px;
+    line-height: 1;
+  }
+  .dbg-section.collapsed::after { content: '▸'; }
+  .dbg-section-body { display: block; }
+  .dbg-section-body.collapsed { display: none; }
+  .dbg-section-body .dbg-btn:first-child,
+  .dbg-section-body .dbg-row:first-child {
+    margin-top: 2px;
+  }
+  .dbg-row {
+    display: flex; align-items: center; margin: 6px 0;
+    gap: 4px;
+  }
+  .dbg-row .dbg-lbl { flex: 0 0 92px; font-size: 10px; line-height: 1.2; }
+  .dbg-row .dbg-val {
+    flex: 0 0 46px; text-align: center; font-size: 10px;
+    background: linear-gradient(180deg, rgba(30,16,0,0.82), rgba(17,9,0,0.90)); border: 1px solid rgba(255, 208, 98, 0.20);
+    padding: 2px 0; border-radius: 8px;
+  }
+  .dbg-row .dbg-val-static {
+    flex: 1 1 auto;
+    text-align: left;
+    padding: 4px 6px;
+    line-height: 1.2;
+    word-break: break-word;
+  }
+  .dbg-btn-step {
+    flex: 0 0 28px; height: 26px; font-size: 14px; line-height: 24px;
+    background: linear-gradient(180deg, rgba(65,36,0,0.90), rgba(31,15,0,0.96)); border: 1px solid #f5c842; color: #f5c842;
+    text-align: center; cursor: pointer; border-radius: 8px; font-family: monospace;
+    -webkit-tap-highlight-color: transparent; user-select: none;
+    touch-action: manipulation;
+  }
+  .dbg-btn-step:active { background: #3a2800; }
+  .dbg-btn {
+    width: 100%; margin-top: 10px; padding: 7px;
+    background: linear-gradient(180deg, rgba(65,36,0,0.90), rgba(31,15,0,0.96)); border: 1px solid #f5c842;
+    color: #f5c842; font-family: monospace; font-size: 11px;
+    cursor: pointer; border-radius: 10px;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  .dbg-btn:active { background: #3a2800; }
+</style>
+</head>
+<body>
+<div id="vignette"></div>
+<div id="hud"></div>
+
+<div id="summon-bar">
+  <div id="boost-bar">
+    <button id="boost-jelly-btn" class="boost-btn disabled">JELLY x0</button>
+  </div>
+  <div id="spawn-timer-bar"><div id="spawn-timer-fill"></div></div>
+  <button id="summon-btn">+ BEE  10 honey</button>
+</div>
+<div id="boost-drag-ghost">JELLY</div>
+
+<div id="preview-modal">
+  <div id="preview-topbar">
+    <span id="preview-title">Bee Level Viewer</span>
+    <button id="preview-close">CLOSE</button>
+  </div>
+  <div id="preview-canvas-wrap">
+    <canvas id="preview-canvas"></canvas>
+  </div>
+  <div id="preview-info">Select a level to inspect</div>
+  <div id="preview-controls">
+    <button class="prev-lvl-btn active" data-level="1">Lv.1</button>
+    <button class="prev-lvl-btn" data-level="2">Lv.2</button>
+    <button class="prev-lvl-btn" data-level="3">Lv.3</button>
+    <button class="prev-lvl-btn" data-level="4">Lv.4</button>
+    <button class="prev-lvl-btn" data-level="5">Lv.5</button>
+    <button class="prev-lvl-btn" data-level="6">Lv.6</button>
+    <button class="prev-lvl-btn" data-level="all">All</button>
+  </div>
+</div>
+<button id="debug-toggle">DEBUG</button>
+<div id="debug-panel">
+  <div class="dbg-section">Camera</div>
+  <div class="dbg-row"><span class="dbg-lbl">Radius</span>      <button class="dbg-btn-step" id="dbg-radius-dn">-</button><span class="dbg-val" id="dbg-radius-val">--</span><button class="dbg-btn-step" id="dbg-radius-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Polar angle</span>  <button class="dbg-btn-step" id="dbg-phi-dn">-</button><span class="dbg-val" id="dbg-phi-val">--</span><button class="dbg-btn-step" id="dbg-phi-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Target Y</span>     <button class="dbg-btn-step" id="dbg-targety-dn">-</button><span class="dbg-val" id="dbg-targety-val">--</span><button class="dbg-btn-step" id="dbg-targety-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">FOV</span>           <button class="dbg-btn-step" id="dbg-fov-dn">-</button><span class="dbg-val" id="dbg-fov-val">--</span><button class="dbg-btn-step" id="dbg-fov-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Wheel zoom</span>    <button class="dbg-btn-step" id="dbg-wheelzoom-dn">-</button><span class="dbg-val" id="dbg-wheelzoom-val">--</span><button class="dbg-btn-step" id="dbg-wheelzoom-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Auto-rotate s</span><button class="dbg-btn-step" id="dbg-rot-dn">-</button><span class="dbg-val" id="dbg-rot-val">--</span><button class="dbg-btn-step" id="dbg-rot-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx dwell</span>     <button class="dbg-btn-step" id="dbg-ctxdwell-dn">-</button><span class="dbg-val" id="dbg-ctxdwell-val">--</span><button class="dbg-btn-step" id="dbg-ctxdwell-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx back</span>      <button class="dbg-btn-step" id="dbg-ctxback-dn">-</button><span class="dbg-val" id="dbg-ctxback-val">--</span><button class="dbg-btn-step" id="dbg-ctxback-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx pull</span>      <button class="dbg-btn-step" id="dbg-ctxpull-dn">-</button><span class="dbg-val" id="dbg-ctxpull-val">--</span><button class="dbg-btn-step" id="dbg-ctxpull-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx anchor</span>    <button class="dbg-btn-step" id="dbg-ctxanchor-dn">-</button><span class="dbg-val" id="dbg-ctxanchor-val">--</span><button class="dbg-btn-step" id="dbg-ctxanchor-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx arc</span>       <button class="dbg-btn-step" id="dbg-ctxarc-dn">-</button><span class="dbg-val" id="dbg-ctxarc-val">--</span><button class="dbg-btn-step" id="dbg-ctxarc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ctx rise</span>      <button class="dbg-btn-step" id="dbg-ctxrise-dn">-</button><span class="dbg-val" id="dbg-ctxrise-val">--</span><button class="dbg-btn-step" id="dbg-ctxrise-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Aim track</span>     <button class="dbg-btn-step" id="dbg-aimtrack-dn">-</button><span class="dbg-val" id="dbg-aimtrack-val">--</span><button class="dbg-btn-step" id="dbg-aimtrack-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cam track</span>     <button class="dbg-btn-step" id="dbg-camtrack-dn">-</button><span class="dbg-val" id="dbg-camtrack-val">--</span><button class="dbg-btn-step" id="dbg-camtrack-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cam off</span>       <button class="dbg-btn-step" id="dbg-camoff-dn">-</button><span class="dbg-val" id="dbg-camoff-val">--</span><button class="dbg-btn-step" id="dbg-camoff-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Gate Y off</span>    <button class="dbg-btn-step" id="dbg-ctxgateoff-dn">-</button><span class="dbg-val" id="dbg-ctxgateoff-val">--</span><button class="dbg-btn-step" id="dbg-ctxgateoff-up">+</button></div>
+  <div class="dbg-section">Scene Art</div>
+  <div class="dbg-row"><span class="dbg-lbl">Scene art</span>     <button class="dbg-btn-step" id="dbg-sceneart-dn">-</button><span class="dbg-val" id="dbg-sceneart-val">--</span><button class="dbg-btn-step" id="dbg-sceneart-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Clouds</span>        <button class="dbg-btn-step" id="dbg-clouds-dn">-</button><span class="dbg-val" id="dbg-clouds-val">--</span><button class="dbg-btn-step" id="dbg-clouds-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ambient bees</span>  <button class="dbg-btn-step" id="dbg-ambientbees-dn">-</button><span class="dbg-val" id="dbg-ambientbees-val">--</span><button class="dbg-btn-step" id="dbg-ambientbees-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Flowers</span>       <button class="dbg-btn-step" id="dbg-flowers-dn">-</button><span class="dbg-val" id="dbg-flowers-val">--</span><button class="dbg-btn-step" id="dbg-flowers-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Foreground</span>    <button class="dbg-btn-step" id="dbg-foreground-dn">-</button><span class="dbg-val" id="dbg-foreground-val">--</span><button class="dbg-btn-step" id="dbg-foreground-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Pollen</span>        <button class="dbg-btn-step" id="dbg-pollen-dn">-</button><span class="dbg-val" id="dbg-pollen-val">--</span><button class="dbg-btn-step" id="dbg-pollen-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Flower count</span>  <button class="dbg-btn-step" id="dbg-flowercount-dn">-</button><span class="dbg-val" id="dbg-flowercount-val">--</span><button class="dbg-btn-step" id="dbg-flowercount-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ambient count</span> <button class="dbg-btn-step" id="dbg-ambientcount-dn">-</button><span class="dbg-val" id="dbg-ambientcount-val">--</span><button class="dbg-btn-step" id="dbg-ambientcount-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Pollen count</span>  <button class="dbg-btn-step" id="dbg-pollencount-dn">-</button><span class="dbg-val" id="dbg-pollencount-val">--</span><button class="dbg-btn-step" id="dbg-pollencount-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Key light</span>     <button class="dbg-btn-step" id="dbg-keylight-dn">-</button><span class="dbg-val" id="dbg-keylight-val">--</span><button class="dbg-btn-step" id="dbg-keylight-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Sky fill</span>      <button class="dbg-btn-step" id="dbg-skyfill-dn">-</button><span class="dbg-val" id="dbg-skyfill-val">--</span><button class="dbg-btn-step" id="dbg-skyfill-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bounce</span>        <button class="dbg-btn-step" id="dbg-bounce-dn">-</button><span class="dbg-val" id="dbg-bounce-val">--</span><button class="dbg-btn-step" id="dbg-bounce-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Rim light</span>     <button class="dbg-btn-step" id="dbg-rimlight-dn">-</button><span class="dbg-val" id="dbg-rimlight-val">--</span><button class="dbg-btn-step" id="dbg-rimlight-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hive glow</span>     <button class="dbg-btn-step" id="dbg-hiveglow-dn">-</button><span class="dbg-val" id="dbg-hiveglow-val">--</span><button class="dbg-btn-step" id="dbg-hiveglow-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cell hi</span>       <button class="dbg-btn-step" id="dbg-cellhi-dn">-</button><span class="dbg-val" id="dbg-cellhi-val">--</span><button class="dbg-btn-step" id="dbg-cellhi-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cell FX</span>       <button class="dbg-btn-step" id="dbg-cellfx-dn">-</button><span class="dbg-val" id="dbg-cellfx-val">--</span><button class="dbg-btn-step" id="dbg-cellfx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee FX</span>        <button class="dbg-btn-step" id="dbg-beefx-dn">-</button><span class="dbg-val" id="dbg-beefx-val">--</span><button class="dbg-btn-step" id="dbg-beefx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Material rich</span> <button class="dbg-btn-step" id="dbg-matrich-dn">-</button><span class="dbg-val" id="dbg-matrich-val">--</span><button class="dbg-btn-step" id="dbg-matrich-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee trails</span>    <button class="dbg-btn-step" id="dbg-beetrails-dn">-</button><span class="dbg-val" id="dbg-beetrails-val">--</span><button class="dbg-btn-step" id="dbg-beetrails-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Event FX</span>      <button class="dbg-btn-step" id="dbg-eventfx-dn">-</button><span class="dbg-val" id="dbg-eventfx-val">--</span><button class="dbg-btn-step" id="dbg-eventfx-up">+</button></div>
+  <div class="dbg-section">Bee Pose</div>
+  <div class="dbg-row"><span class="dbg-lbl">Pose system</span>   <button class="dbg-btn-step" id="dbg-beepose-dn">-</button><span class="dbg-val" id="dbg-beepose-val">--</span><button class="dbg-btn-step" id="dbg-beepose-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Pose guides</span>   <button class="dbg-btn-step" id="dbg-poseguides-dn">-</button><span class="dbg-val" id="dbg-poseguides-val">--</span><button class="dbg-btn-step" id="dbg-poseguides-up">+</button></div>
+  <div class="dbg-section">M6 Tuning</div>
+  <div class="dbg-row"><span class="dbg-lbl">Gate HP</span>       <button class="dbg-btn-step" id="dbg-gatehp-dn">-</button><span class="dbg-val" id="dbg-gatehp-val">--</span><button class="dbg-btn-step" id="dbg-gatehp-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hatch $1</span>      <button class="dbg-btn-step" id="dbg-hatchc-dn">-</button><span class="dbg-val" id="dbg-hatchc-val">--</span><button class="dbg-btn-step" id="dbg-hatchc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hatch +N</span>      <button class="dbg-btn-step" id="dbg-hatchy-dn">-</button><span class="dbg-val" id="dbg-hatchy-val">--</span><button class="dbg-btn-step" id="dbg-hatchy-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hatch sec</span>     <button class="dbg-btn-step" id="dbg-hatchi-dn">-</button><span class="dbg-val" id="dbg-hatchi-val">--</span><button class="dbg-btn-step" id="dbg-hatchi-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Boost $1</span>      <button class="dbg-btn-step" id="dbg-procc-dn">-</button><span class="dbg-val" id="dbg-procc-val">--</span><button class="dbg-btn-step" id="dbg-procc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Boost +R</span>      <button class="dbg-btn-step" id="dbg-procb-dn">-</button><span class="dbg-val" id="dbg-procb-val">--</span><button class="dbg-btn-step" id="dbg-procb-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Pot $</span>         <button class="dbg-btn-step" id="dbg-potc-dn">-</button><span class="dbg-val" id="dbg-potc-val">--</span><button class="dbg-btn-step" id="dbg-potc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Pot exit</span>      <button class="dbg-btn-step" id="dbg-potx-dn">-</button><span class="dbg-val" id="dbg-potx-val">--</span><button class="dbg-btn-step" id="dbg-potx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Exit clear</span>    <button class="dbg-btn-step" id="dbg-exitc-dn">-</button><span class="dbg-val" id="dbg-exitc-val">--</span><button class="dbg-btn-step" id="dbg-exitc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Exit struct</span>   <button class="dbg-btn-step" id="dbg-exits-dn">-</button><span class="dbg-val" id="dbg-exits-val">--</span><button class="dbg-btn-step" id="dbg-exits-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Exit full</span>     <button class="dbg-btn-step" id="dbg-exitf-dn">-</button><span class="dbg-val" id="dbg-exitf-val">--</span><button class="dbg-btn-step" id="dbg-exitf-up">+</button></div>
+  <div class="dbg-section">Hive (press Rebuild)</div>
+  <div class="dbg-row"><span class="dbg-lbl">Cylinder R</span>   <button class="dbg-btn-step" id="dbg-cylr-dn">-</button><span class="dbg-val" id="dbg-cylr-val">--</span><button class="dbg-btn-step" id="dbg-cylr-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">V-spacing</span>     <button class="dbg-btn-step" id="dbg-vspace-dn">-</button><span class="dbg-val" id="dbg-vspace-val">--</span><button class="dbg-btn-step" id="dbg-vspace-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hex radius</span>    <button class="dbg-btn-step" id="dbg-hexr-dn">-</button><span class="dbg-val" id="dbg-hexr-val">--</span><button class="dbg-btn-step" id="dbg-hexr-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Hex depth</span>     <button class="dbg-btn-step" id="dbg-hexd-dn">-</button><span class="dbg-val" id="dbg-hexd-val">--</span><button class="dbg-btn-step" id="dbg-hexd-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Gap factor</span>    <button class="dbg-btn-step" id="dbg-gap-dn">-</button><span class="dbg-val" id="dbg-gap-val">--</span><button class="dbg-btn-step" id="dbg-gap-up">+</button></div>
+  <div class="dbg-section">Simulation</div>
+  <div class="dbg-row"><span class="dbg-lbl">Time scale</span>    <button class="dbg-btn-step" id="dbg-ts-dn">-</button><span class="dbg-val" id="dbg-ts-val">--</span><button class="dbg-btn-step" id="dbg-ts-up">+</button></div>
+  <div class="dbg-section">Tools</div>
+  <div class="dbg-row"><span class="dbg-lbl">Version</span><span class="dbg-val dbg-val-static" id="dbg-version-val">--</span></div>
+  <button class="dbg-btn" id="dbg-preview">Bee Viewer</button>
+  <button class="dbg-btn" id="dbg-rebuild">Rebuild Hive</button>
+  <button class="dbg-btn" id="dbg-copy">Copy Values</button>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script type="module">
+function showBootstrapError(errorLike) {
+  var hudEl = document.getElementById('hud');
+  if (!hudEl) { return; }
+  var message = String(errorLike && errorLike.stack ? errorLike.stack : errorLike);
+  if (window.location.protocol === 'file:' && message.indexOf('Failed to fetch dynamically imported module') !== -1) {
+    message = 'This browser blocked ES module loading from file://\nOpen the game through a local static server instead:\nhttp://127.0.0.1:8125/src/index.html';
+  }
+  hudEl.style.whiteSpace = 'pre-wrap';
+  hudEl.style.maxWidth = 'calc(100vw - 32px)';
+  hudEl.style.pointerEvents = 'auto';
+  hudEl.textContent = message;
+}
+
+window.addEventListener('error', function(event) {
+  showBootstrapError(event && event.error ? event.error : (event && event.message ? event.message : event));
+});
+
+async function resolveBootstrapModules() {
+  var candidates = ['./', './src/'];
+  var lastError = null;
+  for (var i = 0; i < candidates.length; i++) {
+    var moduleRoot = candidates[i];
+    try {
+      return {
+        moduleRoot: moduleRoot,
+        enumsModule: await import(moduleRoot + 'data/enums.js')
+      };
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error('Unable to resolve game module root.');
+}
+
+var bootstrapModules = await resolveBootstrapModules();
+var moduleRoot = bootstrapModules.moduleRoot;
+var enumsModule = bootstrapModules.enumsModule;
+var configModule = await import(moduleRoot + 'config/config.js');
+var hiveConfigModule = await import(moduleRoot + 'config/hiveConfig.js');
+var cameraConfigModule = await import(moduleRoot + 'config/cameraConfig.js');
+var lightingConfigModule = await import(moduleRoot + 'config/lightingConfig.js');
+var sceneArtConfigModule = await import(moduleRoot + 'config/sceneArtConfig.js');
+var presentationConfigModule = await import(moduleRoot + 'config/presentationConfig.js');
+var labelConfigModule = await import(moduleRoot + 'config/labelConfig.js');
+var stageDefsModule = await import(moduleRoot + 'data/stageDefs.js');
+var mathModule = await import(moduleRoot + 'utils/math.js');
+var anglesModule = await import(moduleRoot + 'utils/angles.js');
+var canvasModule = await import(moduleRoot + 'utils/canvas.js');
+var colorModule = await import(moduleRoot + 'utils/color.js');
+var boardQueriesModule = await import(moduleRoot + 'board/boardQueries.js');
+var boardGraphModule = await import(moduleRoot + 'board/boardGraph.js');
+var cellStateModule = await import(moduleRoot + 'board/cellState.js');
+var stageValidationModule = await import(moduleRoot + 'board/stageValidation.js');
+var boardBuilderModule = await import(moduleRoot + 'board/boardBuilder.js');
+var boostsModule = await import(moduleRoot + 'economy/boosts.js');
+var rewardsModule = await import(moduleRoot + 'economy/rewards.js');
+var buildingsModule = await import(moduleRoot + 'economy/buildings.js');
+var gatesModule = await import(moduleRoot + 'economy/gates.js');
+var economyModule = await import(moduleRoot + 'economy/economy.js');
+var beeQueriesModule = await import(moduleRoot + 'bees/beeQueries.js');
+var beeMovementModule = await import(moduleRoot + 'bees/beeMovement.js');
+var beeGatheringModule = await import(moduleRoot + 'bees/beeGathering.js');
+var beeAssignmentsModule = await import(moduleRoot + 'bees/beeAssignments.js');
+var beeFactoryModule = await import(moduleRoot + 'bees/beeFactory.js');
+var beeMergingModule = await import(moduleRoot + 'bees/beeMerging.js');
+var beeStateMachineModule = await import(moduleRoot + 'bees/beeStateMachine.js');
+var beePoseModule = await import(moduleRoot + 'bees/beePose.js');
+var beeVisualStateModule = await import(moduleRoot + 'bees/beeVisualState.js');
+var rendererModule = await import(moduleRoot + 'scene/renderer.js');
+var sceneModule = await import(moduleRoot + 'scene/scene.js');
+var cameraControllerModule = await import(moduleRoot + 'scene/cameraController.js');
+var sceneArtModule = await import(moduleRoot + 'scene/sceneArt.js');
+var lightingModule = await import(moduleRoot + 'scene/lighting.js');
+var hiveMeshesModule = await import(moduleRoot + 'scene/hiveMeshes.js');
+var texturesModule = await import(moduleRoot + 'scene/textures.js');
+var materialsModule = await import(moduleRoot + 'scene/materials.js');
+var cellFxModule = await import(moduleRoot + 'scene/cellFx.js');
+var beeFxModule = await import(moduleRoot + 'scene/beeFx.js');
+var labelsModule = await import(moduleRoot + 'scene/labels.js');
+var debugDrawModule = await import(moduleRoot + 'scene/debugDraw.js');
+var previewViewerModule = await import(moduleRoot + 'scene/previewViewer.js');
+var inputStateModule = await import(moduleRoot + 'input/inputState.js');
+var raycastModule = await import(moduleRoot + 'input/raycast.js');
+var targetingModule = await import(moduleRoot + 'input/targeting.js');
+var interactionsModule = await import(moduleRoot + 'input/interactions.js');
+var pointerControllerModule = await import(moduleRoot + 'input/pointerController.js');
+var gestureControllerModule = await import(moduleRoot + 'input/gestureController.js');
+var hudModule = await import(moduleRoot + 'ui/hud.js');
+var summonBarModule = await import(moduleRoot + 'ui/summonBar.js');
+var toastsModule = await import(moduleRoot + 'ui/toasts.js');
+var debugPanelModule = await import(moduleRoot + 'ui/debugPanel.js');
+var previewModalModule = await import(moduleRoot + 'ui/previewModal.js');
+var selectorsModule = await import(moduleRoot + 'core/selectors.js');
+var assertionsModule = await import(moduleRoot + 'core/assertions.js');
+var mainModule = await import(moduleRoot + 'main.js');
+
+var TARGET_MODE = enumsModule.TARGET_MODE;
+var BOOST_TYPE = enumsModule.BOOST_TYPE;
+var CELL_STATE = enumsModule.CELL_STATE;
+var OBSTACLE_CLASS = enumsModule.OBSTACLE_CLASS;
+var CELL_TYPE = enumsModule.CELL_TYPE;
+var BEE_STATE = enumsModule.BEE_STATE;
+var BEE_ROLE = enumsModule.BEE_ROLE;
+var CAMERA_MODE = enumsModule.CAMERA_MODE;
+var CONFIG = configModule.CONFIG;
+var BUILD_VERSION = configModule.BUILD_VERSION;
+var HIVE = hiveConfigModule.HIVE;
+var CAM = cameraConfigModule.CAM;
+var CAM_CONTEXT = cameraConfigModule.CAM_CONTEXT;
+var LIGHTING = lightingConfigModule.LIGHTING;
+var SCENE_ART = sceneArtConfigModule.SCENE_ART;
+var PRESENTATION = presentationConfigModule.PRESENTATION;
+var LABEL = labelConfigModule.LABEL;
+var STAGE_DEFS = stageDefsModule.STAGE_DEFS;
+var CURRENT_STAGE_ID = stageDefsModule.CURRENT_STAGE_ID;
+var clamp01 = mathModule.clamp01;
+var saturate01 = mathModule.saturate01;
+var lerp = mathModule.lerp;
+var inverseLerp = mathModule.inverseLerp;
+var smoothstep = mathModule.smoothstep;
+var easeInOut = mathModule.easeInOut;
+var normalizeAngle = anglesModule.normalizeAngle;
+var shortestAngleDelta = anglesModule.shortestAngleDelta;
+var lerpAngle = anglesModule.lerpAngle;
+var cellThetaToCameraTheta = anglesModule.cellThetaToCameraTheta;
+var makeLayerCanvas = canvasModule.makeLayerCanvas;
+var featherCanvasEdges = canvasModule.featherCanvasEdges;
+var mixHex = colorModule.mixHex;
+var addHexTint = colorModule.addHexTint;
+var setBoardQueryRuntime = boardQueriesModule.setBoardQueryRuntime;
+var stageCellKey = boardQueriesModule.stageCellKey;
+var getBoardRows = boardQueriesModule.getBoardRows;
+var getBoardCols = boardQueriesModule.getBoardCols;
+var isBoardRowInBounds = boardQueriesModule.isBoardRowInBounds;
+var wrapBoardCol = boardQueriesModule.wrapBoardCol;
+var buildCellIndex = boardQueriesModule.buildCellIndex;
+var getCellById = boardQueriesModule.getCellById;
+var getCellByCoords = boardQueriesModule.getCellByCoords;
+var BOARD_DIRECTIONS = boardGraphModule.BOARD_DIRECTIONS;
+var OPPOSITE_DIRECTION = boardGraphModule.OPPOSITE_DIRECTION;
+var getNeighborOffsetsForRow = boardGraphModule.getNeighborOffsetsForRow;
+var buildLogicalHexGraph = boardGraphModule.buildLogicalHexGraph;
+var getDefaultObstacleClass = cellStateModule.getDefaultObstacleClass;
+var getObstacleClassActivationScale = cellStateModule.getObstacleClassActivationScale;
+var buildRewardTableForCell = cellStateModule.buildRewardTableForCell;
+var getDefaultNectarRequirement = cellStateModule.getDefaultNectarRequirement;
+var getDefaultProductionRate = cellStateModule.getDefaultProductionRate;
+var getPrimarySeat = cellStateModule.getPrimarySeat;
+var getCellSeats = cellStateModule.getCellSeats;
+var getSeatTargetIds = cellStateModule.getSeatTargetIds;
+var cellHasAssignableSeat = cellStateModule.cellHasAssignableSeat;
+var isWorkerSeatCell = cellStateModule.isWorkerSeatCell;
+var addCellOccupant = cellStateModule.addCellOccupant;
+var removeCellOccupant = cellStateModule.removeCellOccupant;
+var hasCellOccupants = cellStateModule.hasCellOccupants;
+var getCellDirectionId = cellStateModule.getCellDirectionId;
+var resolveDirectionIds = cellStateModule.resolveDirectionIds;
+var getRevealTargetIds = cellStateModule.getRevealTargetIds;
+var getCellPrimaryReward = cellStateModule.getCellPrimaryReward;
+var getDirectionsForTargetMode = cellStateModule.getDirectionsForTargetMode;
+var resolveSeatTargetIdsFromSpec = cellStateModule.resolveSeatTargetIdsFromSpec;
+var ensureDefaultWorkerSeat = cellStateModule.ensureDefaultWorkerSeat;
+var setStageValidationRuntime = stageValidationModule.setStageValidationRuntime;
+var validateBoardGraph = stageValidationModule.validateBoardGraph;
+var validateStageAuthoring = stageValidationModule.validateStageAuthoring;
+var canCellEventuallyBecomeWorkerSeat = stageValidationModule.canCellEventuallyBecomeWorkerSeat;
+var getFutureSeatTargetIds = stageValidationModule.getFutureSeatTargetIds;
+var getStageReachableCellIds = stageValidationModule.getStageReachableCellIds;
+var setBoardBuilderRuntime = boardBuilderModule.setBoardBuilderRuntime;
+var getCurrentStageDef = boardBuilderModule.getCurrentStageDef;
+var buildStageSeatGraph = boardBuilderModule.buildStageSeatGraph;
+var applyStageDefinition = boardBuilderModule.applyStageDefinition;
+var initHive = boardBuilderModule.initHive;
+var setBoostsRuntime = boostsModule.setBoostsRuntime;
+var getRoyalRushStacks = boostsModule.getRoyalRushStacks;
+var getRoyalRushWorkMultiplier = boostsModule.getRoyalRushWorkMultiplier;
+var getRoyalRushGatherLoadMultiplier = boostsModule.getRoyalRushGatherLoadMultiplier;
+var getRoyalRushTravelMultiplier = boostsModule.getRoyalRushTravelMultiplier;
+var getRoyalRushConversionMultiplier = boostsModule.getRoyalRushConversionMultiplier;
+var getBeeMergeSurgeMultiplier = boostsModule.getBeeMergeSurgeMultiplier;
+var getBeeRoyalJellyMultiplier = boostsModule.getBeeRoyalJellyMultiplier;
+var registerRoyalRush = boostsModule.registerRoyalRush;
+var updateRoyalRush = boostsModule.updateRoyalRush;
+var setRewardsRuntime = rewardsModule.setRewardsRuntime;
+var grantCellReward = rewardsModule.grantCellReward;
+var getActiveProducerCells = rewardsModule.getActiveProducerCells;
+var routeNectarToActiveCells = rewardsModule.routeNectarToActiveCells;
+var depositNectarToActiveCell = rewardsModule.depositNectarToActiveCell;
+var depositNectarToDormantCell = rewardsModule.depositNectarToDormantCell;
+var chooseGathererDepositTarget = rewardsModule.chooseGathererDepositTarget;
+var setBuildingsRuntime = buildingsModule.setBuildingsRuntime;
+var applyBuildingEffects = buildingsModule.applyBuildingEffects;
+var getHatcheryNectarInterval = buildingsModule.getHatcheryNectarInterval;
+var getHatcheryNectarYield = buildingsModule.getHatcheryNectarYield;
+var tryBuildOrUpgrade = buildingsModule.tryBuildOrUpgrade;
+var updateBuildings = buildingsModule.updateBuildings;
+var buildingActionLabel = buildingsModule.buildingActionLabel;
+var isRequiredStructureCell = buildingsModule.isRequiredStructureCell;
+var invalidateBuildingLabelCache = buildingsModule.invalidateBuildingLabelCache;
+var refreshM6TuningState = buildingsModule.refreshM6TuningState;
+var setGatesRuntime = gatesModule.setGatesRuntime;
+var getStageCompletionStats = gatesModule.getStageCompletionStats;
+var getStageExitBonus = gatesModule.getStageExitBonus;
+var evaluateGateConditions = gatesModule.evaluateGateConditions;
+var updateGate = gatesModule.updateGate;
+var completeLevel = gatesModule.completeLevel;
+var invalidateGateLabelCache = gatesModule.invalidateGateLabelCache;
+var syncGateWorkRequirement = gatesModule.syncGateWorkRequirement;
+var setEconomyRuntime = economyModule.setEconomyRuntime;
+var updateCellEconomy = economyModule.updateCellEconomy;
+var getCurrentSpawnCost = economyModule.getCurrentSpawnCost;
+var doSummon = economyModule.doSummon;
+var setBeeQueriesRuntime = beeQueriesModule.setBeeQueriesRuntime;
+var getBeeById = beeQueriesModule.getBeeById;
+var getSelectedBee = beeQueriesModule.getSelectedBee;
+var getBeeWorkRateForLevel = beeQueriesModule.getBeeWorkRateForLevel;
+var getBeeGatherLoadForLevel = beeQueriesModule.getBeeGatherLoadForLevel;
+var getBeeGatherRestDuration = beeQueriesModule.getBeeGatherRestDuration;
+var getBeeGatherTravelMultiplier = beeQueriesModule.getBeeGatherTravelMultiplier;
+var getBeeEffectiveWorkRate = beeQueriesModule.getBeeEffectiveWorkRate;
+var getBeeEffectiveGatherLoad = beeQueriesModule.getBeeEffectiveGatherLoad;
+var getBeeEffectiveGatherTravelMultiplier = beeQueriesModule.getBeeEffectiveGatherTravelMultiplier;
+var setBeeMovementRuntime = beeMovementModule.setBeeMovementRuntime;
+var bankPosition = beeMovementModule.bankPosition;
+var gatherSourcePosition = beeMovementModule.gatherSourcePosition;
+var randomOffset = beeMovementModule.randomOffset;
+var cellHoverPos = beeMovementModule.cellHoverPos;
+var getCellOrbitBasis = beeMovementModule.getCellOrbitBasis;
+var cellDeliveryPos = beeMovementModule.cellDeliveryPos;
+var cellDisengagePos = beeMovementModule.cellDisengagePos;
+var cellExitPos = beeMovementModule.cellExitPos;
+var travelDuration = beeMovementModule.travelDuration;
+var arcPos = beeMovementModule.arcPos;
+var arcPosEx = beeMovementModule.arcPosEx;
+var getGatherArcPos = beeMovementModule.getGatherArcPos;
+var getBeeFlightFade = beeMovementModule.getBeeFlightFade;
+var applyBeeFlightVisibility = beeMovementModule.applyBeeFlightVisibility;
+var applyMovingBeeOrientation = beeMovementModule.applyMovingBeeOrientation;
+var getBeeSeparationDirection = beeMovementModule.getBeeSeparationDirection;
+var shouldApplyBeePersonalSpace = beeMovementModule.shouldApplyBeePersonalSpace;
+var applyBeePersonalSpace = beeMovementModule.applyBeePersonalSpace;
+var setBeeGatheringRuntime = beeGatheringModule.setBeeGatheringRuntime;
+var refreshBeeGatherRoute = beeGatheringModule.refreshBeeGatherRoute;
+var getBeeGatherMissionSourcePos = beeGatheringModule.getBeeGatherMissionSourcePos;
+var startGathererTrip = beeGatheringModule.startGathererTrip;
+var setBeeAssignmentsRuntime = beeAssignmentsModule.setBeeAssignmentsRuntime;
+var canSeatTargetCell = beeAssignmentsModule.canSeatTargetCell;
+var isTargetableFromSeat = beeAssignmentsModule.isTargetableFromSeat;
+var pickWorkTarget = beeAssignmentsModule.pickWorkTarget;
+var releaseWorkTarget = beeAssignmentsModule.releaseWorkTarget;
+var setBeeGathererRole = beeAssignmentsModule.setBeeGathererRole;
+var setBeeWorkerRole = beeAssignmentsModule.setBeeWorkerRole;
+var beeCanWorkTargetCell = beeAssignmentsModule.beeCanWorkTargetCell;
+var assignBeeToCell = beeAssignmentsModule.assignBeeToCell;
+var captureMergeAssignment = beeAssignmentsModule.captureMergeAssignment;
+var applyMergeAssignment = beeAssignmentsModule.applyMergeAssignment;
+var setBeeFactoryRuntime = beeFactoryModule.setBeeFactoryRuntime;
+var spawnBee = beeFactoryModule.spawnBee;
+var spawnAtHive = beeFactoryModule.spawnAtHive;
+var removeBee = beeFactoryModule.removeBee;
+var initBees = beeFactoryModule.initBees;
+var registerBeeMeshes = beeFactoryModule.registerBeeMeshes;
+var setBeeMergingRuntime = beeMergingModule.setBeeMergingRuntime;
+var mergeBees = beeMergingModule.mergeBees;
+var setBeeStateMachineRuntime = beeStateMachineModule.setBeeStateMachineRuntime;
+var updateBees = beeStateMachineModule.updateBees;
+var setBeePoseRuntime = beePoseModule.setBeePoseRuntime;
+var getCellWorldPos = beePoseModule.getCellWorldPos;
+var getCellSurfaceNormal = beePoseModule.getCellSurfaceNormal;
+var projectOnPlane = beePoseModule.projectOnPlane;
+var getFallbackSeatForward = beePoseModule.getFallbackSeatForward;
+var getCellHexDirections = beePoseModule.getCellHexDirections;
+var getCellRenderBasis = beePoseModule.getCellRenderBasis;
+var getSharedFaceDirection = beePoseModule.getSharedFaceDirection;
+var getSeatToTargetFaceDirection = beePoseModule.getSeatToTargetFaceDirection;
+var computeWorkerBeeFrame = beePoseModule.computeWorkerBeeFrame;
+var applyWorkerBeePose = beePoseModule.applyWorkerBeePose;
+var snapForwardToHexDirection = beePoseModule.snapForwardToHexDirection;
+var buildBeePoseInput = beePoseModule.buildBeePoseInput;
+var computeBeeWorkingAnim = beePoseModule.computeBeeWorkingAnim;
+var computeBeePose = beePoseModule.computeBeePose;
+var applyBeePose = beePoseModule.applyBeePose;
+var setBeeVisualStateRuntime = beeVisualStateModule.setBeeVisualStateRuntime;
+var updateBeeReadabilityVisual = beeVisualStateModule.updateBeeReadabilityVisual;
+var createRenderer = rendererModule.createRenderer;
+var installRendererResizeHandling = rendererModule.installRendererResizeHandling;
+var createScene = sceneModule.createScene;
+var createCamera = sceneModule.createCamera;
+var createHiveGroup = sceneModule.createHiveGroup;
+var setCameraControllerRuntime = cameraControllerModule.setCameraControllerRuntime;
+var applyOpeningCameraPose = cameraControllerModule.applyOpeningCameraPose;
+var getOpeningFocusTheta = cameraControllerModule.getOpeningFocusTheta;
+var getCameraContextState = cameraControllerModule.getCameraContextState;
+var enterDragging = cameraControllerModule.enterDragging;
+var enterPostDragSlowmo = cameraControllerModule.enterPostDragSlowmo;
+var enterRecover = cameraControllerModule.enterRecover;
+var enterAutorotate = cameraControllerModule.enterAutorotate;
+var updateTimeScale = cameraControllerModule.updateTimeScale;
+var updateCamera = cameraControllerModule.updateCamera;
+var setSceneArtRuntime = sceneArtModule.setSceneArtRuntime;
+var sceneArt = sceneArtModule.sceneArt;
+var makeArtPlane = sceneArtModule.makeArtPlane;
+var buildSceneArtLayers = sceneArtModule.buildSceneArtLayers;
+var updateSceneArtLayers = sceneArtModule.updateSceneArtLayers;
+var initSceneArt = sceneArtModule.initSceneArt;
+var updateSceneArt = sceneArtModule.updateSceneArt;
+var setDebugDrawRuntime = debugDrawModule.setDebugDrawRuntime;
+var drawLine = debugDrawModule.drawLine;
+var updateWorkEdges = debugDrawModule.updateWorkEdges;
+var updateWorkerDebug = debugDrawModule.updateWorkerDebug;
+var updateBeePoseDebug = debugDrawModule.updateBeePoseDebug;
+var findChild = previewViewerModule.findChild;
+var pointer = inputStateModule.pointer;
+var pinch = inputStateModule.pinch;
+var DRAG_THRESHOLD_PX = inputStateModule.DRAG_THRESHOLD_PX;
+var LONG_PRESS_MS = inputStateModule.LONG_PRESS_MS;
+var BEE_PICKUP_TOLERANCE_PX = inputStateModule.BEE_PICKUP_TOLERANCE_PX;
+var BEE_MERGE_SNAP_TOLERANCE_PX = inputStateModule.BEE_MERGE_SNAP_TOLERANCE_PX;
+var BOOST_TARGET_TOLERANCE_PX = inputStateModule.BOOST_TARGET_TOLERANCE_PX;
+var BEE_DRAG_EDGE_ROTATE_ZONE_FRAC = inputStateModule.BEE_DRAG_EDGE_ROTATE_ZONE_FRAC;
+var BEE_DRAG_EDGE_ROTATE_DWELL_S = inputStateModule.BEE_DRAG_EDGE_ROTATE_DWELL_S;
+var BEE_DRAG_EDGE_ROTATE_SPEED_MAX = inputStateModule.BEE_DRAG_EDGE_ROTATE_SPEED_MAX;
+var setRaycastRuntime = raycastModule.setRaycastRuntime;
+var setTargetingRuntime = targetingModule.setTargetingRuntime;
+var setInteractionsRuntime = interactionsModule.setInteractionsRuntime;
+var beginBoostDrag = interactionsModule.beginBoostDrag;
+var updateBeeDragInteraction = interactionsModule.updateBeeDragInteraction;
+var setPointerControllerRuntime = pointerControllerModule.setPointerControllerRuntime;
+var onPointerMove = pointerControllerModule.onPointerMove;
+var onPointerUp = pointerControllerModule.onPointerUp;
+var installPointerController = pointerControllerModule.installPointerController;
+var setGestureControllerRuntime = gestureControllerModule.setGestureControllerRuntime;
+var installGestureController = gestureControllerModule.installGestureController;
+var setHudRuntime = hudModule.setHudRuntime;
+var updateUI = hudModule.updateUI;
+var setSummonBarRuntime = summonBarModule.setSummonBarRuntime;
+var initSummonBar = summonBarModule.initSummonBar;
+var setBuildingToast = toastsModule.setBuildingToast;
+var appendBuildingToast = toastsModule.appendBuildingToast;
+var setMergeToast = toastsModule.setMergeToast;
+var updateToasts = toastsModule.updateToasts;
+var setDebugPanelRuntime = debugPanelModule.setDebugPanelRuntime;
+var getDebugPanel = debugPanelModule.getDebugPanel;
+var setDebugSectionCollapsed = debugPanelModule.setDebugSectionCollapsed;
+var initDebugSections = debugPanelModule.initDebugSections;
+var dbgRefresh = debugPanelModule.dbgRefresh;
+var initDebugPanel = debugPanelModule.initDebugPanel;
+var resizePreviewModal = previewModalModule.resizePreviewModal;
+var initPreviewModal = previewModalModule.initPreviewModal;
+var getGameSimTime = selectorsModule.getGameSimTime;
+var getGameCellMeshMap = selectorsModule.getGameCellMeshMap;
+var getGameMeshUuidToCellId = selectorsModule.getGameMeshUuidToCellId;
+var runConservativeAssertions = assertionsModule.runConservativeAssertions;
+var main = mainModule.main;
+var createLightingRig = lightingModule.createLightingRig;
+var setLightingRuntime = lightingModule.setLightingRuntime;
+var refreshLightingRig = lightingModule.refreshLightingRig;
+var setHiveMeshesRuntime = hiveMeshesModule.setHiveMeshesRuntime;
+var buildCurvedHexGeometry = hiveMeshesModule.buildCurvedHexGeometry;
+var buildCurvedHexFaceGeometry = hiveMeshesModule.buildCurvedHexFaceGeometry;
+var buildFlatHexFaceGeometry = hiveMeshesModule.buildFlatHexFaceGeometry;
+var buildInitialCellMeshes = hiveMeshesModule.buildInitialCellMeshes;
+var createCoreCyl = hiveMeshesModule.createCoreCyl;
+var createCoreOccluder = hiveMeshesModule.createCoreOccluder;
+var refreshCoreCylinderMaterial = hiveMeshesModule.refreshCoreCylinderMaterial;
+var buildCellFxTextures = texturesModule.buildCellFxTextures;
+var buildProceduralMaterialMaps = texturesModule.buildProceduralMaterialMaps;
+var buildCellFaceOverlayTexture = texturesModule.buildCellFaceOverlayTexture;
+var buildHoneyPoolTexture = texturesModule.buildHoneyPoolTexture;
+var buildSkyTexture = texturesModule.buildSkyTexture;
+var buildCloudTexture = texturesModule.buildCloudTexture;
+var buildHorizonTexture = texturesModule.buildHorizonTexture;
+var buildFlowerTexture = texturesModule.buildFlowerTexture;
+var buildForegroundTexture = texturesModule.buildForegroundTexture;
+var buildAmbientBeeTexture = texturesModule.buildAmbientBeeTexture;
+var setMaterialsRuntime = materialsModule.setMaterialsRuntime;
+var VIS = materialsModule.VIS;
+var CELL_SURFACE = materialsModule.CELL_SURFACE;
+var getCellMaterialKey = materialsModule.getCellMaterialKey;
+var getCellMaterialMaps = materialsModule.getCellMaterialMaps;
+var applyCellMaterialMaps = materialsModule.applyCellMaterialMaps;
+var getCellRoleName = materialsModule.getCellRoleName;
+var getCellStructureType = materialsModule.getCellStructureType;
+var getCellRewardLeadType = materialsModule.getCellRewardLeadType;
+var canBeeInteractWithCell = materialsModule.canBeeInteractWithCell;
+var getCellVisualState = materialsModule.getCellVisualState;
+var resolveCellVisualStyle = materialsModule.resolveCellVisualStyle;
+var resolveCellHighlightState = materialsModule.resolveCellHighlightState;
+var cellMaterial = materialsModule.cellMaterial;
+var cellRadialLift = materialsModule.cellRadialLift;
+var refreshCellMaterial = materialsModule.refreshCellMaterial;
+var ensureCellSurfaceLayers = materialsModule.ensureCellSurfaceLayers;
+var updateCellSurfaceLayers = materialsModule.updateCellSurfaceLayers;
+var setCellFxRuntime = cellFxModule.setCellFxRuntime;
+var cellFxMap = cellFxModule.cellFxMap;
+var cellFxTransientMap = cellFxModule.cellFxTransientMap;
+var ensureCellFx = cellFxModule.ensureCellFx;
+var ensureCellFxTransient = cellFxModule.ensureCellFxTransient;
+var triggerCellUnlockFx = cellFxModule.triggerCellUnlockFx;
+var triggerHoneyReadyFx = cellFxModule.triggerHoneyReadyFx;
+var triggerMergeFx = cellFxModule.triggerMergeFx;
+var updateCellFx = cellFxModule.updateCellFx;
+var updateCellVfx = cellFxModule.updateCellVfx;
+var queueBurstCallback = cellFxModule.queueBurstCallback;
+var updateBurstCallbacks = cellFxModule.updateBurstCallbacks;
+var spawnLevelCompleteBurst = cellFxModule.spawnLevelCompleteBurst;
+var spawnMergeBurst = cellFxModule.spawnMergeBurst;
+var spawnRewardBurst = cellFxModule.spawnRewardBurst;
+var setBeeFxRuntime = beeFxModule.setBeeFxRuntime;
+var beeFxMap = beeFxModule.beeFxMap;
+var buildBeeFx = beeFxModule.buildBeeFx;
+var removeBeeFx = beeFxModule.removeBeeFx;
+var updateBeeFx = beeFxModule.updateBeeFx;
+var setLabelsRuntime = labelsModule.setLabelsRuntime;
+var drawGateLabel = labelsModule.drawGateLabel;
+var drawRewardBlockerLabel = labelsModule.drawRewardBlockerLabel;
+var drawObstacleLabel = labelsModule.drawObstacleLabel;
+var drawDormantLabel = labelsModule.drawDormantLabel;
+var drawTimerLabel = labelsModule.drawTimerLabel;
+var drawBeeLabel = labelsModule.drawBeeLabel;
+var drawOpenCellLabel = labelsModule.drawOpenCellLabel;
+var drawBuildingLabel = labelsModule.drawBuildingLabel;
+var makeLabelPlane = labelsModule.makeLabelPlane;
+var cellLabelMap = labelsModule.cellLabelMap;
+var openCellLabelMap = labelsModule.openCellLabelMap;
+var gateLabelMap = labelsModule.gateLabelMap;
+var beeLabelMap = labelsModule.beeLabelMap;
+var initCellLabels = labelsModule.initCellLabels;
+var addBeeLabelFor = labelsModule.addBeeLabelFor;
+var removeBeeLabelFor = labelsModule.removeBeeLabelFor;
+var ensureActiveCellLabel = labelsModule.ensureActiveCellLabel;
+var ensureObstacleCellLabel = labelsModule.ensureObstacleCellLabel;
+var updateLabels = labelsModule.updateLabels;
+
+'use strict';
+
+// ============================================================
+// SECTION 1: CONSTANTS & CONFIG
+// ============================================================
+
+var WORKER_DEBUG_DRAW = false;
+var DEBUG_WORKERS     = false;
+var DEBUG_NEIGHBORS   = true;
+
+var BEE = {
+  MAX_COUNT: 25,
+  SPEED: 3.2,
+  BANK_RADIUS: HIVE.CYLINDER_RADIUS + 2.8,
+  BANK_Y: -7.4,
+  OFFSET_RANGE: 0.55,
+  BODY_R: 0.34,
+  FLY_HEIGHT_EXTRA: 0.8,
+  PERSONAL_SPACE: 0.74,
+  SEAT_STACK_SPREAD: 0.30,
+  SEPARATION_PUSH_LIMIT: 0.20,
+  GATHER_MISSION_RADIUS_MIN: HIVE.CYLINDER_RADIUS + 10.5,
+  GATHER_MISSION_RADIUS_MAX: HIVE.CYLINDER_RADIUS + 16.0,
+  GATHER_MISSION_Y_MIN: -13.2,
+  GATHER_MISSION_Y_MAX: -3.4
+};
+
+var BEE_VIS = {
+  ROLE_WORKER_COLOR: 0xf5c842,
+  ROLE_WORKER_EMI: 0xaa6a00,
+  ROLE_GATHERER_COLOR: 0x7be9ff,
+  ROLE_GATHERER_EMI: 0x145c78,
+  CARGO_COLOR: 0x44dd88,
+  CARGO_EMI: 0x0d5a38,
+  BOOST_COLOR: 0x7be9ff,
+  BOOST_EMI: 0x0d6b88,
+  SURGE_COLOR: 0xffc24a,
+  SURGE_EMI: 0x884400
+};
+
+var BEE_BODY = {
+  SEAT_SURFACE_LIFT:     0.34,
+  BODY_CENTER_BACKSET:   0.18,
+  HEAD_FORWARD_OFFSET:   0.22,
+  WORK_THRUST_AMPLITUDE: 0.10,
+  WORK_SWAY_AMPLITUDE:   0.05,
+  WORK_BOB_AMPLITUDE:    0.04,
+  WORK_ANIM_SPEED:       5.0,
+  IDLE_BOB_AMPLITUDE:    0.012
+};
+
+var USE_BEE_POSE_SYSTEM = true;
+
+var BEE_POSE = {
+  SEAT_LIFT:         0.30,
+  BODY_BACKSET:      0.18,
+  HEAD_OVERLAP:      0.00,
+  HEAD_TO_CENTER:    BEE.BODY_R * 1.10,
+  TARGET_EDGE_OFFSET: HIVE.HEX_CIRCUMRADIUS * 0.54,
+  WORK_TARGET_HEAD_BIAS: 0.10,
+  IDLE_BREATH_AMP:   0.012,
+  IDLE_BREATH_SPEED: 2.0,
+  WORK_PECK_AMP:     0.10,
+  WORK_PECK_SPEED:   6.0,
+  WORK_WIGGLE_AMP:   0.05,
+  WORK_WIGGLE_SPEED: 10.0,
+  WORK_BOB_AMP:      0.04
+};
+
+function cylinderCellPosition(row, col) {
+  var colOffset = (row % 2 === 0) ? 0.0 : 0.5;
+  var theta = ((col + colOffset) / getBoardCols()) * Math.PI * 2;
+  var r = HIVE.CYLINDER_RADIUS;
+  var yCenter = ((getBoardRows() - 1) / 2) * HIVE.VERTICAL_SPACING;
+  return {
+    x: Math.cos(theta) * r,
+    y: row * HIVE.VERTICAL_SPACING - yCenter,
+    z: Math.sin(theta) * r,
+    theta: theta
+  };
+}
+
+function revealNeighborCells(openedCell) {
+  var ni;
+  var nid;
+  var neighbor;
+  var revealed = [];
+  var revealIds = getRevealTargetIds(openedCell);
+  for (ni = 0; ni < revealIds.length; ni++) {
+    nid = revealIds[ni];
+    neighbor = getCellById(nid);
+    if (!neighbor) { continue; }
+    if (neighbor.state !== CELL_STATE.LOCKED) { continue; }
+    if (neighbor.cellType === CELL_TYPE.GATE) { continue; }
+    neighbor.state = CELL_STATE.OBSTACLE;
+    revealed.push(neighbor);
+    if (typeof cellMeshMap !== 'undefined' && cellMeshMap[neighbor.id]) {
+      refreshCellMaterial(neighbor);
+      flashCell(neighbor.id, 0xffd97a);
+    }
+    triggerCellUnlockFx(neighbor);
+  }
+  return revealed;
+}
+
+var game = null;
+var renderer = null;
+var scene = null;
+var lightingRig = null;
+var skyFillLight = null;
+var sunLight = null;
+var groundBounceLight = null;
+var rimLight = null;
+var hiveGlow = null;
+var hiveGroup = null;
+var STATE = null;
+var cellVisualStateMap = null;
+var cellFlashStateMap = null;
+var cellMeshMap = null;
+var coreCyl = null;
+var camera = null;
+var camTarget = null;
+var camState = null;
+
+function bindGameAliases(nextGame) {
+  game = nextGame;
+  if (!game) { return; }
+  STATE = game.state;
+  cellVisualStateMap = game.caches.cellVisualStateMap;
+  cellFlashStateMap = game.caches.cellFlashStateMap;
+  cellMeshMap = game.caches.cellMeshMap;
+  renderer = game.scene.renderer;
+  scene = game.scene.scene;
+  lightingRig = game.scene.lightingRig;
+  skyFillLight = game.scene.skyFillLight;
+  sunLight = game.scene.sunLight;
+  groundBounceLight = game.scene.groundBounceLight;
+  rimLight = game.scene.rimLight;
+  hiveGlow = game.scene.hiveGlow;
+  hiveGroup = game.scene.hiveGroup;
+  coreCyl = game.scene.coreCyl;
+  camera = game.scene.camera;
+  camTarget = game.scene.camTarget;
+  camState = game.scene.camState;
+}
+
+function markCameraInteraction(cell) {
+  if (!cell || !game || !game.runtime || !game.runtime.time) { return; }
+  game.runtime.time.lastInteractTheta = cell.theta;
+  game.runtime.time.lastInteractY = cell.worldPos.y;
+  game.runtime.time.lastInteractYTimer = CAM_CONTEXT.INTERACT_Y_HOLD;
+}
+
+function rebuildHiveFromDebug() {
+  var oldCells = STATE.cells;
+  for (var oi = 0; oi < oldCells.length; oi++) {
+    var oldMesh = cellMeshMap[oldCells[oi].id];
+    if (oldMesh) {
+      if (oldMesh.userData.innerFace) {
+        hiveGroup.remove(oldMesh.userData.innerFace);
+        oldMesh.userData.innerFace.geometry.dispose();
+        oldMesh.userData.innerFace.material.dispose();
+      }
+      if (oldMesh.userData.honeyFace) {
+        hiveGroup.remove(oldMesh.userData.honeyFace);
+        oldMesh.userData.honeyFace.geometry.dispose();
+        oldMesh.userData.honeyFace.material.dispose();
+      }
+      oldMesh.geometry.dispose();
+      oldMesh.material.dispose();
+      hiveGroup.remove(oldMesh);
+    }
+    if (cellFxMap[oldCells[oi].id]) {
+      hiveGroup.remove(cellFxMap[oldCells[oi].id].root);
+      delete cellFxMap[oldCells[oi].id];
+    }
+  }
+  game.caches.cellMeshMap = {};
+  cellMeshMap = getGameCellMeshMap(game);
+  for (var cellFxTransientId in cellFxTransientMap) {
+    delete cellFxTransientMap[cellFxTransientId];
+  }
+  STATE.cells = initHive();
+  applyOpeningCameraPose();
+  buildCellIndex();
+  for (var ri = 0; ri < STATE.cells.length; ri++) {
+    var rcell = STATE.cells[ri];
+    var rlift = cellRadialLift(rcell);
+    var rmesh = new THREE.Mesh(buildCurvedHexGeometry(rcell.theta, HIVE.CYLINDER_RADIUS + rlift, HIVE.HEX_CIRCUMRADIUS, HIVE.HEX_DEPTH, HIVE.HEX_GAP_FACTOR), cellMaterial(rcell));
+    rmesh.castShadow = true;
+    rmesh.receiveShadow = true;
+    rmesh.position.set(0, rcell.worldPos.y, 0);
+    rmesh.userData.cellId = rcell.id;
+    hiveGroup.add(rmesh);
+    cellMeshMap[rcell.id] = rmesh;
+    ensureCellSurfaceLayers(rcell, rmesh, HIVE.CYLINDER_RADIUS + rlift);
+    ensureCellFx(rcell, rmesh);
+  }
+  coreCyl.geometry.dispose();
+  coreCyl.geometry = new THREE.CylinderGeometry(HIVE.CYLINDER_RADIUS - 0.72, HIVE.CYLINDER_RADIUS - 0.72, HIVE.ROWS * HIVE.VERTICAL_SPACING * 2.4, 48, 1, false);
+  refreshCoreCylinderMaterial();
+  initSceneArt();
+  runConservativeAssertions(game);
+}
+
+function copyDebugValues() {
+  var lines = [
+    'HIVE.CYLINDER_RADIUS   = ' + HIVE.CYLINDER_RADIUS.toFixed(3) + ';',
+    'HIVE.VERTICAL_SPACING  = ' + HIVE.VERTICAL_SPACING.toFixed(3) + ';',
+    'HIVE.HEX_CIRCUMRADIUS  = ' + HIVE.HEX_CIRCUMRADIUS.toFixed(3) + ';',
+    'HIVE.HEX_DEPTH         = ' + HIVE.HEX_DEPTH.toFixed(3) + ';',
+    'HIVE.HEX_GAP_FACTOR    = ' + HIVE.HEX_GAP_FACTOR.toFixed(4) + ';',
+    'CAM.RADIUS             = ' + camState.radius.toFixed(2) + ';',
+    'CAM.POLAR_ANGLE        = ' + camState.phi.toFixed(3) + ';',
+    'CAM.TARGET_Y           = ' + CAM.TARGET_Y.toFixed(2) + ';',
+    'CAM.FOV                = ' + camera.fov.toFixed(1) + ';',
+    'CAM.DESKTOP_WHEEL_ZOOM_SENSITIVITY = ' + CAM.DESKTOP_WHEEL_ZOOM_SENSITIVITY.toFixed(4) + ';',
+    'CAM.AUTO_ROTATE_TIME   = ' + Math.round((2 * Math.PI) / camState.autoRotateSpeed) + ';',
+    'CAM_CONTEXT.DWELL_STRENGTH = ' + CAM_CONTEXT.DWELL_STRENGTH.toFixed(2) + ';',
+    'CAM_CONTEXT.DWELL_BACKSIDE_BOOST = ' + CAM_CONTEXT.DWELL_BACKSIDE_BOOST.toFixed(2) + ';',
+    'CAM_CONTEXT.THETA_PULL = ' + CAM_CONTEXT.THETA_PULL.toFixed(2) + ';',
+    'CAM_CONTEXT.OPENING_ANCHOR = ' + CAM_CONTEXT.OPENING_ANCHOR.toFixed(2) + ';',
+    'CAM_CONTEXT.OPENING_SLOW_ARC = ' + CAM_CONTEXT.OPENING_SLOW_ARC.toFixed(2) + ';',
+    'CAM_CONTEXT.Y_TRACK_STRENGTH = ' + CAM_CONTEXT.Y_TRACK_STRENGTH.toFixed(2) + ';',
+    'CAM_CONTEXT.AIM_TRACK_Y = ' + CAM_CONTEXT.AIM_TRACK_Y.toFixed(2) + ';',
+    'CAM_CONTEXT.CAMERA_TRACK_Y = ' + CAM_CONTEXT.CAMERA_TRACK_Y.toFixed(2) + ';',
+    'CAM_CONTEXT.CAMERA_TRACK_OFFSET = ' + CAM_CONTEXT.CAMERA_TRACK_OFFSET.toFixed(2) + ';',
+    'CAM_CONTEXT.GATE_Y_OFFSET = ' + CAM_CONTEXT.GATE_Y_OFFSET.toFixed(2) + ';',
+    'SCENE_ART.ENABLED = ' + (SCENE_ART.ENABLED ? 'true' : 'false') + ';',
+    'SCENE_ART.CLOUD_VISIBLE = ' + (SCENE_ART.CLOUD_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.AMBIENT_BEES_VISIBLE = ' + (SCENE_ART.AMBIENT_BEES_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.FLOWERS_VISIBLE = ' + (SCENE_ART.FLOWERS_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.FOREGROUND_VISIBLE = ' + (SCENE_ART.FOREGROUND_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.POLLEN_VISIBLE = ' + (SCENE_ART.POLLEN_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.FLOWER_CLUSTER_COUNT = ' + SCENE_ART.FLOWER_CLUSTER_COUNT + ';',
+    'SCENE_ART.AMBIENT_BEE_COUNT = ' + SCENE_ART.AMBIENT_BEE_COUNT + ';',
+    'SCENE_ART.POLLEN_COUNT = ' + SCENE_ART.POLLEN_COUNT + ';',
+    'LIGHTING.KEY_INTENSITY = ' + LIGHTING.KEY_INTENSITY.toFixed(2) + ';',
+    'LIGHTING.SKY_INTENSITY = ' + LIGHTING.SKY_INTENSITY.toFixed(2) + ';',
+    'LIGHTING.BOUNCE_INTENSITY = ' + LIGHTING.BOUNCE_INTENSITY.toFixed(2) + ';',
+    'LIGHTING.RIM_INTENSITY = ' + LIGHTING.RIM_INTENSITY.toFixed(2) + ';',
+    'PRESENTATION.MATERIAL_RICHNESS_ENABLED = ' + (PRESENTATION.MATERIAL_RICHNESS_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.BEE_TRAILS_ENABLED = ' + (PRESENTATION.BEE_TRAILS_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.EVENT_FX_ENABLED = ' + (PRESENTATION.EVENT_FX_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.CELL_HIGHLIGHTS_ENABLED = ' + (PRESENTATION.CELL_HIGHLIGHTS_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.CELL_FX_ENABLED = ' + (PRESENTATION.CELL_FX_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.BEE_READABILITY_ENABLED = ' + (PRESENTATION.BEE_READABILITY_ENABLED ? 'true' : 'false') + ';',
+    'USE_BEE_POSE_SYSTEM = ' + (USE_BEE_POSE_SYSTEM ? 'true' : 'false') + ';',
+    'CONFIG.GATE_WORK_REQUIRED = ' + Math.round(CONFIG.GATE_WORK_REQUIRED) + ';',
+    'CONFIG.HATCHERY_BUILD_COST[1] = ' + Math.round(CONFIG.HATCHERY_BUILD_COST[1]) + ';',
+    'CONFIG.HATCHERY_NECTAR_YIELD[1] = ' + Math.round(CONFIG.HATCHERY_NECTAR_YIELD[1]) + ';',
+    'CONFIG.HATCHERY_NECTAR_INTERVAL[1] = ' + Math.round(CONFIG.HATCHERY_NECTAR_INTERVAL[1]) + ';',
+    'CONFIG.PROCESSOR_BUILD_COST[1] = ' + Math.round(CONFIG.PROCESSOR_BUILD_COST[1]) + ';',
+    'CONFIG.PROCESSOR_RATE_BONUS[1] = ' + Math.round(CONFIG.PROCESSOR_RATE_BONUS[1]) + ';',
+    'CONFIG.BUILDING_LOT_CLAIM_COST = ' + Math.round(CONFIG.BUILDING_LOT_CLAIM_COST) + ';',
+    'CONFIG.BUILDING_LOT_EXIT_BONUS = ' + Math.round(CONFIG.BUILDING_LOT_EXIT_BONUS) + ';',
+    'CONFIG.STAGE_EXIT_CLEAR_BONUS_MAX = ' + Math.round(CONFIG.STAGE_EXIT_CLEAR_BONUS_MAX) + ';',
+    'CONFIG.STAGE_EXIT_STRUCTURE_BONUS = ' + Math.round(CONFIG.STAGE_EXIT_STRUCTURE_BONUS) + ';',
+    'CONFIG.STAGE_EXIT_FULL_CLEAR_BONUS = ' + Math.round(CONFIG.STAGE_EXIT_FULL_CLEAR_BONUS) + ';'
+  ];
+  if (navigator.clipboard && navigator.clipboard.writeText) { navigator.clipboard.writeText(lines.join('\n')); }
+  var btn = document.getElementById('dbg-copy');
+  btn.textContent = 'Copied!';
+  setTimeout(function() { btn.textContent = 'Copy Values'; }, 1500);
+}
+
+function debugSeatNeighbors(cell) {
+  if (!cell) { return; }
+  var primarySeat = getPrimarySeat(cell);
+  console.log('[SEAT] id=' + cell.id +
+    ' row=' + cell.row + ' col=' + cell.col +
+    ' seats=' + getCellSeats(cell).length +
+    ' targetMode=' + (primarySeat ? primarySeat.targetMode : 'none') +
+    ' targetable=' + getSeatTargetIds(cell).length);
+
+  if (cell.directionMap) {
+    console.log('[DIR_MAP]', JSON.stringify(cell.directionMap));
+  }
+  console.log('[SEAT_TARGETS]', JSON.stringify(getSeatTargetIds(cell)));
+}
+
+function completeObstacleCell(cell) {
+  if (cell.cellType === CELL_TYPE.GATE) {
+    cell.state = CELL_STATE.ACTIVE;
+    cell.gateUnlocked = true;
+    cell.occupantBeeIds = [];
+    cell.activationProgress = cell.activationRequired;
+    refreshCellMaterial(cell);
+    flashCell(cell.id, 0xff6666);
+    var gateConds = evaluateGateConditions();
+    if (gateConds.allGatesCleared) {
+      completeLevel(cell);
+    } else {
+      setBuildingToast('Gate segment cleared  ' + gateConds.gatesCleared + '/' + gateConds.gatesTotal, 2.4);
+    }
+    return;
+  }
+
+  if (cell.cellType === CELL_TYPE.BLOCKER || cell.cellType === CELL_TYPE.REWARD_BLOCKER) {
+    cell.cellType = CELL_TYPE.OPEN;
+    ensureDefaultWorkerSeat(cell);
+  }
+  cell.state = CELL_STATE.DORMANT;
+  cell.occupantBeeIds = [];
+  cell.activationProgress = cell.activationRequired;
+  refreshCellMaterial(cell);
+  var revealedCells = revealNeighborCells(cell);
+  var rewardSummary = grantCellReward(cell);
+
+  var lbl = cellLabelMap[cell.id];
+  if (lbl) {
+    lbl.lastProgress = -99;
+    lbl.lastRewardState = '';
+    lbl.mesh.visible = true;
+  }
+
+  for (var rNi = 0; rNi < revealedCells.length; rNi++) {
+    ensureObstacleCellLabel(revealedCells[rNi]);
+  }
+
+  if (revealedCells.length > 0) {
+    var revealMsg = revealedCells.length === 1 ? '1 path revealed' : revealedCells.length + ' paths revealed';
+    if (!rewardSummary || ((rewardSummary.honey || 0) + (rewardSummary.nectar || 0) <= 0)) {
+      setBuildingToast(revealMsg, 2.2);
+    } else {
+      appendBuildingToast('  •  ' + revealMsg, 2.8);
+    }
+  }
+}
+
+function activateDormantCell(cell) {
+  if (!cell || cell.state !== CELL_STATE.DORMANT) { return false; }
+  if (cell.nectarStored < cell.nectarRequired) {
+    setBuildingToast('Gatherers must deposit ' + cell.nectarRequired + ' nectar', 2.0);
+    return false;
+  }
+
+  cell.baseProductionRate = getDefaultProductionRate(cell.row, cell.cellType);
+  cell.productionRate = cell.baseProductionRate;
+  cell.conversionRate = cell.baseProductionRate;
+  if (cell.cellType === CELL_TYPE.OPEN) {
+    ensureDefaultWorkerSeat(cell);
+  }
+  cell.state = CELL_STATE.ACTIVE;
+  applyBuildingEffects();
+  refreshCellMaterial(cell);
+  ensureActiveCellLabel(cell);
+
+  var lbl = cellLabelMap[cell.id];
+  if (lbl) { lbl.mesh.visible = false; }
+
+  setBuildingToast(
+    (cell.cellType === CELL_TYPE.OPEN)
+      ? 'Cell activated by gatherer'
+      : 'Structure activated by gatherer',
+    1.5
+  );
+  flashCell(cell.id, 0x44ffaa);
+  markCameraInteraction(cell);
+  return true;
+}
+
+function registerCellMesh(cellId, mesh) {
+  var meshUuidToCellId = getGameMeshUuidToCellId(game);
+  if (meshUuidToCellId) { meshUuidToCellId[mesh.uuid] = cellId; }
+}
+
+var selectionRingGeo = new THREE.SphereGeometry(BEE.BODY_R * 1.55, 12, 8);
+var selectionRingMat = new THREE.MeshStandardMaterial({
+  color: 0xffee00,
+  emissive: 0xffcc00,
+  emissiveIntensity: 2.5,
+  roughness: 0.0,
+  metalness: 0.0,
+  transparent: true,
+  opacity: 0.38,
+  side: THREE.BackSide,
+  depthWrite: false
+});
+var selectionRingMesh = null;
+
+function initSelectionRing() {
+  if (selectionRingMesh) { return selectionRingMesh; }
+  selectionRingMesh = new THREE.Mesh(selectionRingGeo, selectionRingMat);
+  selectionRingMesh.visible = false;
+  scene.add(selectionRingMesh);
+  return selectionRingMesh;
+}
+
+function setBeeHighlight(bee, on) {
+  if (!bee || !bee.mesh) { return; }
+  if (on) {
+    selectionRingMesh.visible = true;
+    selectionRingMesh.position.copy(bee.mesh.position);
+    bee.mesh.scale.setScalar((bee.baseScale || 1.0) * 1.15);
+    bee.mesh.traverse(function(obj) {
+      if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive) { return; }
+      if (obj.material._baseColor === undefined) {
+        obj.material._baseColor = obj.material.color.getHex();
+        obj.material._baseEmi = obj.material.emissive.getHex();
+        obj.material._baseEmiInt = obj.material.emissiveIntensity;
+        if (obj.material.transparent) { obj.material._baseOpacity = obj.material.opacity; }
+      }
+      if (!obj.material.transparent) {
+        obj.material.emissive.setHex(0xffcc00);
+        obj.material.emissiveIntensity = 1.8;
+      } else {
+        obj.material.emissive.setHex(0x88eeff);
+        obj.material.emissiveIntensity = 1.2;
+        obj.material.opacity = 0.78;
+      }
+    });
+  } else {
+    selectionRingMesh.visible = false;
+    bee.mesh.scale.setScalar(bee.baseScale || 1.0);
+    bee.mesh.traverse(function(obj) {
+      if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive) { return; }
+      if (obj.material._baseColor !== undefined) {
+        obj.material.emissive.setHex(obj.material._baseEmi);
+        obj.material.emissiveIntensity = obj.material._baseEmiInt;
+        if (obj.material.transparent && obj.material._baseOpacity !== undefined) { obj.material.opacity = obj.material._baseOpacity; }
+      }
+    });
+  }
+}
+
+function setMergeTargetHighlight(bee, on) {
+  if (!bee || !bee.mesh) { return; }
+  bee.mesh.traverse(function(obj) {
+    if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive) { return; }
+    if (on) {
+      if (obj.material._mtBase === undefined) {
+        obj.material._mtBase = obj.material.emissive.getHex();
+        obj.material._mtBaseInt = obj.material.emissiveIntensity;
+        if (obj.material.transparent) { obj.material._mtBaseOp = obj.material.opacity; }
+      }
+      if (!obj.material.transparent) {
+        obj.material.emissive.setHex(0x00ffaa);
+        obj.material.emissiveIntensity = 1.4;
+      } else {
+        obj.material.emissive.setHex(0x00ffcc);
+        obj.material.emissiveIntensity = 0.9;
+        obj.material.opacity = 0.68;
+      }
+    } else {
+      if (obj.material._mtBase !== undefined) {
+        obj.material.emissive.setHex(obj.material._mtBase);
+        obj.material.emissiveIntensity = obj.material._mtBaseInt;
+        if (obj.material.transparent && obj.material._mtBaseOp !== undefined) { obj.material.opacity = obj.material._mtBaseOp; }
+        delete obj.material._mtBase;
+        delete obj.material._mtBaseInt;
+        delete obj.material._mtBaseOp;
+      }
+    }
+  });
+  bee.mesh.scale.setScalar(on ? (bee.baseScale || 1.0) * 1.25 : (bee.baseScale || 1.0));
+}
+
+function setBoostTargetHighlight(bee, on) {
+  if (!bee || !bee.mesh) { return; }
+  bee.mesh.traverse(function(obj) {
+    if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive || obj.material.transparent) { return; }
+    if (on) {
+      if (obj.material._hoverBase === undefined) {
+        obj.material._hoverBase = obj.material.emissive.getHex();
+        obj.material._hoverBaseInt = obj.material.emissiveIntensity;
+      }
+      obj.material.emissive.setHex(0x66eeff);
+      obj.material.emissiveIntensity = 1.6;
+    } else if (obj.material._hoverBase !== undefined) {
+      obj.material.emissive.setHex(obj.material._hoverBase);
+      obj.material.emissiveIntensity = obj.material._hoverBaseInt;
+      delete obj.material._hoverBase;
+      delete obj.material._hoverBaseInt;
+    }
+  });
+  bee.mesh.scale.setScalar(on ? (bee.baseScale || 1.0) * 1.18 : (bee.baseScale || 1.0));
+}
+
+function setBeeHoverTint(bee, color, intensity) {
+  if (!bee || !bee.mesh) { return; }
+  bee.mesh.traverse(function(obj) {
+    if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive || obj.material.transparent) { return; }
+    if (obj.material._hoverBase === undefined) {
+      obj.material._hoverBase = obj.material.emissive.getHex();
+      obj.material._hoverBaseInt = obj.material.emissiveIntensity;
+    }
+    obj.material.emissive.setHex(color);
+    obj.material.emissiveIntensity = intensity;
+  });
+}
+
+function restoreBeeVisual(bee) {
+  if (!bee || !bee.mesh) { return; }
+  bee.mesh.scale.setScalar(bee.baseScale || 1.0);
+  bee.mesh.traverse(function(obj) {
+    if (!obj.isMesh || obj.userData.isLabel || !obj.material || !obj.material.emissive) { return; }
+    if (obj.material._hoverBase !== undefined) {
+      obj.material.emissive.setHex(obj.material._hoverBase);
+      obj.material.emissiveIntensity = obj.material._hoverBaseInt;
+      delete obj.material._hoverBase;
+      delete obj.material._hoverBaseInt;
+    } else if (obj.material._mtBase !== undefined) {
+      obj.material.emissive.setHex(obj.material._mtBase);
+      obj.material.emissiveIntensity = obj.material._mtBaseInt;
+      if (obj.material.transparent && obj.material._mtBaseOp !== undefined) { obj.material.opacity = obj.material._mtBaseOp; }
+    } else if (obj.material._baseEmi !== undefined) {
+      obj.material.emissive.setHex(obj.material._baseEmi);
+      obj.material.emissiveIntensity = obj.material._baseEmiInt;
+      if (obj.material.transparent && obj.material._baseOpacity !== undefined) { obj.material.opacity = obj.material._baseOpacity; }
+    }
+  });
+}
+
+var mergeTargetIds = [];
+function updateMergeTargetHighlights(selectedBee) {
+  for (var ci = 0; ci < mergeTargetIds.length; ci++) {
+    var prevBee = getBeeById(mergeTargetIds[ci]);
+    if (prevBee) { setMergeTargetHighlight(prevBee, false); }
+  }
+  mergeTargetIds = [];
+  if (!selectedBee) { return; }
+  for (var bi = 0; bi < STATE.bees.length; bi++) {
+    var candidate = STATE.bees[bi];
+    if (candidate.id !== selectedBee.id && candidate.level === selectedBee.level) {
+      setMergeTargetHighlight(candidate, true);
+      mergeTargetIds.push(candidate.id);
+    }
+  }
+}
+
+function flashCell(cellId, color) {
+  cellFlashStateMap[cellId] = {
+    color: color,
+    duration: 0.22,
+    until: getGameSimTime(game) + 0.22
+  };
+}
+
+function rejectShake(bee) {
+  if (!bee || !bee.mesh) { return; }
+  var origX = bee.mesh.position.x;
+  var t = 0;
+  var shakeInterval = setInterval(function() {
+    t += 1;
+    bee.mesh.position.x = origX + Math.sin(t * 3.5) * 0.12;
+    if (t >= 6) {
+      bee.mesh.position.x = origX;
+      clearInterval(shakeInterval);
+    }
+  }, 35);
+}
+
+function selectBee(bee) {
+  updateMergeTargetHighlights(null);
+  var prev = getSelectedBee();
+  if (prev) {
+    prev.selected = false;
+    setBeeHighlight(prev, false);
+  }
+  if (bee) {
+    bee.selected = true;
+    setBeeHighlight(bee, true);
+    STATE.selectedBeeId = bee.id;
+    updateMergeTargetHighlights(bee);
+    STATE.gameTimeScale = CONFIG.BEE_SELECTION_SCALE;
+  } else {
+    STATE.selectedBeeId = null;
+    if (STATE.cameraMode === CAMERA_MODE.AUTOROTATE || STATE.cameraMode === CAMERA_MODE.RECOVER) { enterRecover(); }
+  }
+}
+
+function applyRoyalJellyToBee(bee) {
+  if (!bee || STATE.boosts.royal_jelly <= 0) { return false; }
+  STATE.boosts.royal_jelly = Math.max(0, STATE.boosts.royal_jelly - 1);
+  bee.royalJellyTimer = Math.max(bee.royalJellyTimer || 0, CONFIG.ROYAL_JELLY_DURATION);
+  var burstPos = bee.mesh ? bee.mesh.position.clone() : bee.pos.clone();
+  spawnRewardBurst(burstPos, BOOST_TYPE.ROYAL_JELLY, 1);
+  setBuildingToast('Royal Jelly on bee #' + bee.id + '  +' + Math.round(CONFIG.ROYAL_JELLY_WORK_BONUS * 100) + '% work', 2.0);
+  return true;
+}
+
+var selectionPulseT = 0;
+
+function updateSelectionVisual(dt) {
+  selectionPulseT += dt * 4.0;
+
+  if (!updateSelectionVisual._lastHighlighted) { updateSelectionVisual._lastHighlighted = []; }
+  if (!updateSelectionVisual._lastHoverBeeIds) { updateSelectionVisual._lastHoverBeeIds = []; }
+  var lh = updateSelectionVisual._lastHighlighted;
+  for (var lhi = 0; lhi < lh.length; lhi++) {
+    var lhc = getCellById(lh[lhi]);
+    if (lhc && cellMeshMap[lh[lhi]]) { refreshCellMaterial(lhc); }
+  }
+  updateSelectionVisual._lastHighlighted = [];
+  var lhb = updateSelectionVisual._lastHoverBeeIds;
+  for (var lhbi = 0; lhbi < lhb.length; lhbi++) {
+    var prevHoverBee = getBeeById(lhb[lhbi]);
+    if (prevHoverBee) { restoreBeeVisual(prevHoverBee); }
+  }
+  updateSelectionVisual._lastHoverBeeIds = [];
+
+  var bee = getSelectedBee();
+  if (!bee || !bee.mesh) {
+    selectionRingMesh.visible = false;
+    return;
+  }
+
+  if (pointer.dragMode === 'bee_assign' && pointer.moved && pointer.dragVisualPos) {
+    bee.mesh.position.copy(pointer.dragVisualPos);
+    selectionRingMesh.position.copy(pointer.dragVisualPos);
+  } else {
+    bee.mesh.position.y = bee.pos.y + Math.sin(selectionPulseT) * 0.08;
+    selectionRingMesh.position.copy(bee.mesh.position);
+  }
+  selectionRingMat.opacity = 0.28 + Math.abs(Math.sin(selectionPulseT * 1.5)) * 0.25;
+  selectionRingMesh.scale.setScalar(1.0 + Math.sin(selectionPulseT * 2.0) * 0.08);
+
+  var mergePulse = 0.5 + Math.abs(Math.sin(selectionPulseT * 2.8)) * 0.9;
+  for (var mi = 0; mi < mergeTargetIds.length; mi++) {
+    var mBee = getBeeById(mergeTargetIds[mi]);
+    if (mBee && mBee.mesh) {
+      mBee.mesh.traverse(function(obj) {
+        if (obj.isMesh && !obj.userData.isLabel && obj.material && obj.material.emissive && !obj.material.transparent) {
+          obj.material.emissiveIntensity = mergePulse;
+        }
+      });
+    }
+  }
+
+  if (pointer.dragMode === 'boost_drag' && pointer.moved) {
+    if (pointer.dragHoverBeeId !== null) {
+      var boostBee = getBeeById(pointer.dragHoverBeeId);
+      if (boostBee && boostBee.mesh) {
+        setBoostTargetHighlight(boostBee, true);
+        updateSelectionVisual._lastHoverBeeIds.push(pointer.dragHoverBeeId);
+      }
+    }
+  } else if (pointer.dragMode === 'bee_assign' && pointer.moved) {
+    if (pointer.dragHoverBeeId !== null) {
+      var hoverBee = getBeeById(pointer.dragHoverBeeId);
+      if (hoverBee && hoverBee.mesh) {
+        var hoverValid = (bee.level === hoverBee.level);
+        setBeeHoverTint(hoverBee, hoverValid ? 0x00ffaa : 0xff3344, 1.0 + Math.abs(Math.sin(selectionPulseT * 2.1)) * 0.9);
+        updateSelectionVisual._lastHoverBeeIds.push(pointer.dragHoverBeeId);
+      }
+    }
+  }
+
+  if (DEBUG_NEIGHBORS && bee && bee.isWorker && bee.seatCellId) {
+    var dnSeat = getCellById(bee.seatCellId);
+    if (dnSeat) {
+      var dnPulse = 0.5 + Math.abs(Math.sin(selectionPulseT * 2.2)) * 0.7;
+
+      var dnSeatMesh = cellMeshMap[dnSeat.id];
+      if (dnSeatMesh) {
+        dnSeatMesh.material.emissive.setHex(0xffcc00);
+        dnSeatMesh.material.emissiveIntensity = dnPulse;
+        updateSelectionVisual._lastHighlighted.push(dnSeat.id);
+      }
+
+      var targetSet = {};
+      var debugSeatTargetIds = getSeatTargetIds(dnSeat);
+      for (var ni2 = 0; ni2 < debugSeatTargetIds.length; ni2++) { targetSet[debugSeatTargetIds[ni2]] = true; }
+
+      var neighborSet = {};
+      if (dnSeat.neighborIds) {
+        for (var ni3 = 0; ni3 < dnSeat.neighborIds.length; ni3++) { neighborSet[dnSeat.neighborIds[ni3]] = true; }
+      }
+
+      var allHighlight = {};
+      for (var tid in targetSet) { allHighlight[tid] = 'target'; }
+      for (var nid in neighborSet) {
+        if (!allHighlight[nid]) { allHighlight[nid] = 'neighbor-only'; }
+      }
+
+      for (var hid in allHighlight) {
+        var dnCell = getCellById(hid);
+        var dnMesh = cellMeshMap[hid];
+        if (!dnCell || !dnMesh) { continue; }
+        if (allHighlight[hid] === 'target') {
+          dnMesh.material.emissive.setHex(0x0088ff);
+        } else {
+          dnMesh.material.emissive.setHex(0xff2200);
+        }
+        dnMesh.material.emissiveIntensity = dnPulse;
+        updateSelectionVisual._lastHighlighted.push(hid);
+      }
+    }
+  }
+}
+
+// Keep this bridge limited to the extracted bootstrap/core entrypoints and
+// the inline helpers that still depend on shared aliases for parity.
+var legacy = {
+  THREE: THREE,
+  CELL_STATE: CELL_STATE,
+  CELL_TYPE: CELL_TYPE,
+  CONFIG: CONFIG,
+  HIVE: HIVE,
+  CAM: CAM,
+  CAM_CONTEXT: CAM_CONTEXT,
+  LIGHTING: LIGHTING,
+  SCENE_ART: SCENE_ART,
+  PRESENTATION: PRESENTATION,
+  LABEL: LABEL,
+  STAGE_DEFS: STAGE_DEFS,
+  CURRENT_STAGE_ID: CURRENT_STAGE_ID,
+  BEE: BEE,
+  BEE_VIS: BEE_VIS,
+  BEE_BODY: BEE_BODY,
+  BEE_POSE: BEE_POSE,
+  pointer: pointer,
+  pinch: pinch,
+  BEE_DRAG_EDGE_ROTATE_ZONE_FRAC: BEE_DRAG_EDGE_ROTATE_ZONE_FRAC,
+  BEE_DRAG_EDGE_ROTATE_DWELL_S: BEE_DRAG_EDGE_ROTATE_DWELL_S,
+  BEE_DRAG_EDGE_ROTATE_SPEED_MAX: BEE_DRAG_EDGE_ROTATE_SPEED_MAX,
+  bindGameAliases: bindGameAliases,
+  getCurrentStageDef: getCurrentStageDef,
+  cylinderCellPosition: cylinderCellPosition,
+  createRenderer: createRenderer,
+  installRendererResizeHandling: installRendererResizeHandling,
+  createScene: createScene,
+  createCamera: createCamera,
+  createHiveGroup: createHiveGroup,
+  createLightingRig: createLightingRig,
+  createCoreCyl: createCoreCyl,
+  createCoreOccluder: createCoreOccluder,
+  setBoardQueryRuntime: setBoardQueryRuntime,
+  setStageValidationRuntime: setStageValidationRuntime,
+  setBoardBuilderRuntime: setBoardBuilderRuntime,
+  setMaterialsRuntime: setMaterialsRuntime,
+  setCellFxRuntime: setCellFxRuntime,
+  setLabelsRuntime: setLabelsRuntime,
+  initHive: initHive,
+  setLightingRuntime: setLightingRuntime,
+  setHiveMeshesRuntime: setHiveMeshesRuntime,
+  cellMaterial: cellMaterial,
+  cellRadialLift: cellRadialLift,
+  ensureCellSurfaceLayers: ensureCellSurfaceLayers,
+  ensureCellFx: ensureCellFx,
+  buildInitialCellMeshes: buildInitialCellMeshes,
+  refreshCoreCylinderMaterial: refreshCoreCylinderMaterial,
+  setCameraControllerRuntime: setCameraControllerRuntime,
+  getSelectedBee: getSelectedBee,
+  updateBeeDragInteraction: updateBeeDragInteraction,
+  getOpeningFocusTheta: getOpeningFocusTheta,
+  applyOpeningCameraPose: applyOpeningCameraPose,
+  setSceneArtRuntime: setSceneArtRuntime,
+  initSceneArt: initSceneArt,
+  refreshLightingRig: refreshLightingRig,
+  setBoostsRuntime: setBoostsRuntime,
+  setRewardsRuntime: setRewardsRuntime,
+  getCellWorldPos: getCellWorldPos,
+  refreshCellMaterial: refreshCellMaterial,
+  ensureActiveCellLabel: ensureActiveCellLabel,
+  activateDormantCell: activateDormantCell,
+  isRequiredStructureCell: isRequiredStructureCell,
+  spawnRewardBurst: spawnRewardBurst,
+  setBuildingToast: setBuildingToast,
+  setBuildingsRuntime: setBuildingsRuntime,
+  openCellLabelMap: openCellLabelMap,
+  routeNectarToActiveCells: routeNectarToActiveCells,
+  flashCell: flashCell,
+  markCameraInteraction: markCameraInteraction,
+  syncGateWorkRequirement: syncGateWorkRequirement,
+  invalidateGateLabelCache: invalidateGateLabelCache,
+  setGatesRuntime: setGatesRuntime,
+  gateLabelMap: gateLabelMap,
+  spawnLevelCompleteBurst: spawnLevelCompleteBurst,
+  setEconomyRuntime: setEconomyRuntime,
+  triggerHoneyReadyFx: triggerHoneyReadyFx,
+  spawnAtHive: spawnAtHive,
+  setHudRuntime: setHudRuntime,
+  getCurrentSpawnCost: getCurrentSpawnCost,
+  getRoyalRushStacks: getRoyalRushStacks,
+  evaluateGateConditions: evaluateGateConditions,
+  getStageExitBonus: getStageExitBonus,
+  buildingActionLabel: buildingActionLabel,
+  getBeeEffectiveWorkRate: getBeeEffectiveWorkRate,
+  getBeeEffectiveGatherLoad: getBeeEffectiveGatherLoad,
+  setSummonBarRuntime: setSummonBarRuntime,
+  doSummon: doSummon,
+  beginBoostDrag: beginBoostDrag,
+  onPointerMove: onPointerMove,
+  onPointerUp: onPointerUp,
+  setBeeQueriesRuntime: setBeeQueriesRuntime,
+  setRaycastRuntime: setRaycastRuntime,
+  setTargetingRuntime: setTargetingRuntime,
+  setInteractionsRuntime: setInteractionsRuntime,
+  selectBee: selectBee,
+  rejectShake: rejectShake,
+  applyRoyalJellyToBee: applyRoyalJellyToBee,
+  setPointerControllerRuntime: setPointerControllerRuntime,
+  setGestureControllerRuntime: setGestureControllerRuntime,
+  getDebugPanel: getDebugPanel,
+  dbgRefresh: dbgRefresh,
+  setBeePoseRuntime: setBeePoseRuntime,
+  setBeeMovementRuntime: setBeeMovementRuntime,
+  getCellRenderBasis: getCellRenderBasis,
+  projectOnPlane: projectOnPlane,
+  getFallbackSeatForward: getFallbackSeatForward,
+  getCellSurfaceNormal: getCellSurfaceNormal,
+  setBeeGatheringRuntime: setBeeGatheringRuntime,
+  setBeeAssignmentsRuntime: setBeeAssignmentsRuntime,
+  debugSeatNeighbors: debugSeatNeighbors,
+  setBeeVisualStateRuntime: setBeeVisualStateRuntime,
+  setBeeFxRuntime: setBeeFxRuntime,
+  setBeeFactoryRuntime: setBeeFactoryRuntime,
+  buildBeeFx: buildBeeFx,
+  addBeeLabelFor: addBeeLabelFor,
+  removeBeeFx: removeBeeFx,
+  removeBeeLabelFor: removeBeeLabelFor,
+  registerCellMesh: registerCellMesh,
+  setBeeMergingRuntime: setBeeMergingRuntime,
+  updateMergeTargetHighlights: updateMergeTargetHighlights,
+  spawnMergeBurst: spawnMergeBurst,
+  triggerMergeFx: triggerMergeFx,
+  queueBurstCallback: queueBurstCallback,
+  setMergeToast: setMergeToast,
+  setBeeStateMachineRuntime: setBeeStateMachineRuntime,
+  buildBeePoseInput: buildBeePoseInput,
+  computeBeePose: computeBeePose,
+  applyBeePose: applyBeePose,
+  computeWorkerBeeFrame: computeWorkerBeeFrame,
+  snapForwardToHexDirection: snapForwardToHexDirection,
+  applyWorkerBeePose: applyWorkerBeePose,
+  updateBeeReadabilityVisual: updateBeeReadabilityVisual,
+  updateBeeFx: updateBeeFx,
+  drawLine: drawLine,
+  findChild: findChild,
+  completeObstacleCell: completeObstacleCell,
+  setDebugDrawRuntime: setDebugDrawRuntime,
+  setDebugPanelRuntime: setDebugPanelRuntime,
+  invalidateBuildingLabelCache: invalidateBuildingLabelCache,
+  refreshM6TuningState: refreshM6TuningState,
+  rebuildHiveFromDebug: rebuildHiveFromDebug,
+  copyDebugValues: copyDebugValues,
+  initSummonBar: initSummonBar,
+  initDebugPanel: initDebugPanel,
+  installPointerController: installPointerController,
+  installGestureController: installGestureController,
+  initBees: initBees,
+  initCellLabels: initCellLabels,
+  runConservativeAssertions: runConservativeAssertions,
+  initSelectionRing: initSelectionRing,
+  initPreviewModal: initPreviewModal,
+  resizePreviewModal: resizePreviewModal,
+  addHexTint: addHexTint,
+  getCellVisualState: getCellVisualState,
+  resolveCellVisualStyle: resolveCellVisualStyle,
+  resolveCellHighlightState: resolveCellHighlightState,
+  updateCellSurfaceLayers: updateCellSurfaceLayers,
+  updateCellEconomy: updateCellEconomy,
+  updateBuildings: updateBuildings,
+  updateGate: updateGate,
+  updateBees: updateBees,
+  updateCellVfx: updateCellVfx,
+  updateSelectionVisual: updateSelectionVisual,
+  updateLabels: updateLabels,
+  updateWorkEdges: updateWorkEdges,
+  updateWorkerDebug: updateWorkerDebug,
+  updateBeePoseDebug: updateBeePoseDebug,
+  updateBurstCallbacks: updateBurstCallbacks,
+  updateToasts: updateToasts,
+  updateUI: updateUI,
+  updateRoyalRush: updateRoyalRush,
+  updateTimeScale: updateTimeScale,
+  updateCamera: updateCamera,
+  updateSceneArt: updateSceneArt,
+  getDebugNeighbors: function() { return DEBUG_NEIGHBORS; },
+  getUseBeePoseSystem: function() { return USE_BEE_POSE_SYSTEM; },
+  setUseBeePoseSystem: function(on) { USE_BEE_POSE_SYSTEM = on; },
+  getWorkerDebugDraw: function() { return WORKER_DEBUG_DRAW; },
+  setWorkerDebugDraw: function(on) { WORKER_DEBUG_DRAW = on; DEBUG_WORKERS = on; },
+  getDebugWorkers: function() { return DEBUG_WORKERS; }
+};
+
+try {
+  game = main(legacy);
+} catch (error) {
+  console.error(error);
+  showBootstrapError(error);
+}
+</script>
+</body>
+</html>
