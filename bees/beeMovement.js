@@ -150,7 +150,15 @@ export function getGatherArcPos(bee, fromPos, toPos, t) {
   var curve = bee && bee.gatherRouteCurve ? bee.gatherRouteCurve : 0;
   var tt = t;
 
-  if (bee && bee.gatherPhase === 'outbound') {
+  if (bee && bee.gatherPhase === 'released_outbound') {
+    bump += 0.65;
+    alt *= 0.95;
+    curve += bee.arcAlt * 0.25;
+    tt = smoothstep(0.0, 1.0, t);
+    var releasedArc = arcPosEx(fromPos, toPos, tt, bump, alt, curve);
+    var releasedBlend = smoothstep(0.10, 0.52, t);
+    return fromPos.clone().lerp(releasedArc, releasedBlend);
+  } else if (bee && bee.gatherPhase === 'outbound') {
     bump += 0.85;
     alt *= 1.10;
     curve += bee.arcAlt * 0.35;
@@ -183,6 +191,8 @@ export function getGatherArcPos(bee, fromPos, toPos, t) {
 
 export function getBeeFlightFade(bee) {
   if (!bee || bee.role !== BEE_ROLE.GATHERER) { return 1.0; }
+  if (bee.gatherPhase === 'released') { return 1.0; }
+  if (bee.gatherPhase === 'released_outbound') { return 1.0; }
   if (bee.gatherPhase === 'resting' && bee.seatCellId === null && !bee.selected) {
     return 0.0;
   }

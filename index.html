@@ -1655,6 +1655,22 @@ function applyRoyalJellyToBee(bee) {
 
 var selectionPulseT = 0;
 
+function markSelectionHighlightCell(cellId) {
+  if (!updateSelectionVisual._lastHighlighted) { updateSelectionVisual._lastHighlighted = []; }
+  if (updateSelectionVisual._lastHighlighted.indexOf(cellId) === -1) {
+    updateSelectionVisual._lastHighlighted.push(cellId);
+  }
+}
+
+function applySelectionCellHighlight(cellId, color, intensity) {
+  var cell = getCellById(cellId);
+  var mesh = cell && cellMeshMap[cellId];
+  if (!cell || !mesh) { return; }
+  mesh.material.emissive.setHex(color);
+  mesh.material.emissiveIntensity = intensity;
+  markSelectionHighlightCell(cellId);
+}
+
 function updateSelectionVisual(dt) {
   selectionPulseT += dt * 4.0;
 
@@ -1720,44 +1736,37 @@ function updateSelectionVisual(dt) {
     }
   }
 
-  if (DEBUG_NEIGHBORS && bee && bee.isWorker && bee.seatCellId) {
-    var dnSeat = getCellById(bee.seatCellId);
-    if (dnSeat) {
-      var dnPulse = 0.5 + Math.abs(Math.sin(selectionPulseT * 2.2)) * 0.7;
+  if (DEBUG_NEIGHBORS && bee && bee.isWorker) {
+    var dragSeatOnly = !!(pointer.dragMode === 'bee_assign' && pointer.moved);
+    var currentSeatPulse = 0.58 + Math.abs(Math.sin(selectionPulseT * 2.2)) * 0.72;
+    var seatTargetPulse = 0.44 + Math.abs(Math.sin(selectionPulseT * 2.0 + 0.2)) * 0.52;
+    var workTargetPulse = 0.42 + Math.abs(Math.sin(selectionPulseT * 2.6 + 0.5)) * 0.44;
+    var seatHoverPulse = 0.92 + Math.abs(Math.sin(selectionPulseT * 3.2 + 0.1)) * 0.78;
 
-      var dnSeatMesh = cellMeshMap[dnSeat.id];
-      if (dnSeatMesh) {
-        dnSeatMesh.material.emissive.setHex(0xffcc00);
-        dnSeatMesh.material.emissiveIntensity = dnPulse;
-        updateSelectionVisual._lastHighlighted.push(dnSeat.id);
-      }
+    for (var sci = 0; sci < STATE.cells.length; sci++) {
+      var seatCandidate = STATE.cells[sci];
+      if (!isWorkerSeatCell(seatCandidate) || !cellHasAssignableSeat(seatCandidate)) { continue; }
+      applySelectionCellHighlight(seatCandidate.id, 0x2cc7b5, seatTargetPulse);
+    }
 
-      var targetSet = {};
-      var debugSeatTargetIds = getSeatTargetIds(dnSeat);
-      for (var ni2 = 0; ni2 < debugSeatTargetIds.length; ni2++) { targetSet[debugSeatTargetIds[ni2]] = true; }
+    if (!dragSeatOnly && bee.seatCellId) {
+      var dnSeat = getCellById(bee.seatCellId);
+      if (dnSeat) {
+        applySelectionCellHighlight(dnSeat.id, 0xffcc00, currentSeatPulse);
 
-      var neighborSet = {};
-      if (dnSeat.neighborIds) {
-        for (var ni3 = 0; ni3 < dnSeat.neighborIds.length; ni3++) { neighborSet[dnSeat.neighborIds[ni3]] = true; }
-      }
-
-      var allHighlight = {};
-      for (var tid in targetSet) { allHighlight[tid] = 'target'; }
-      for (var nid in neighborSet) {
-        if (!allHighlight[nid]) { allHighlight[nid] = 'neighbor-only'; }
-      }
-
-      for (var hid in allHighlight) {
-        var dnCell = getCellById(hid);
-        var dnMesh = cellMeshMap[hid];
-        if (!dnCell || !dnMesh) { continue; }
-        if (allHighlight[hid] === 'target') {
-          dnMesh.material.emissive.setHex(0x0088ff);
-        } else {
-          dnMesh.material.emissive.setHex(0xff2200);
+        var debugSeatTargetIds = getSeatTargetIds(dnSeat);
+        for (var ni2 = 0; ni2 < debugSeatTargetIds.length; ni2++) {
+          var targetCell = getCellById(debugSeatTargetIds[ni2]);
+          if (!targetCell || targetCell.state !== CELL_STATE.OBSTACLE) { continue; }
+          applySelectionCellHighlight(targetCell.id, 0xffa13a, workTargetPulse);
         }
-        dnMesh.material.emissiveIntensity = dnPulse;
-        updateSelectionVisual._lastHighlighted.push(hid);
+      }
+    }
+
+    if (dragSeatOnly && pointer.dragHoverCellId !== null) {
+      var hoverCell = getCellById(pointer.dragHoverCellId);
+      if (hoverCell && isWorkerSeatCell(hoverCell) && cellHasAssignableSeat(hoverCell)) {
+        applySelectionCellHighlight(hoverCell.id, 0xeafff6, seatHoverPulse);
       }
     }
   }

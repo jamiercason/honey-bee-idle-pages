@@ -30,6 +30,8 @@ export var pointer = {
   dragHoverCellId: null,
   dragHoverTargetKind: null,
   dragVisualPos: null,
+  dragMinRadius: 0,
+  dragPlaneDepth: 0,
   dragBoostType: null,
   dragGhostX: 0,
   dragGhostY: 0,

@@ -32,12 +32,13 @@ export function getBeeGatherMissionSourcePos(bee) {
 
 export function startGathererTrip(bee) {
   if (!bee || bee.role !== BEE_ROLE.GATHERER) { return; }
+  var wasReleased = (bee.gatherPhase === 'released');
   refreshBeeGatherRoute(bee);
   var sourcePos = getBeeGatherMissionSourcePos(bee).add(randomOffset());
   bee.origin.copy(bee.pos);
   bee.targetPos.copy(sourcePos);
   bee.travelT = 0;
   bee.travelDur = Math.max(0.35, travelDuration(bee.pos, sourcePos) / getBeeEffectiveGatherTravelMultiplier(bee));
-  bee.gatherPhase = 'outbound';
+  bee.gatherPhase = wasReleased ? 'released_outbound' : 'outbound';
   bee.state = BEE_STATE.IDLE;
 }

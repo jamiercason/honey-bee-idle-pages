@@ -66,6 +66,8 @@ function resetPointerState() {
   pointer.dragHoverCellId = null;
   pointer.dragHoverTargetKind = null;
   pointer.dragVisualPos = null;
+  pointer.dragMinRadius = 0;
+  pointer.dragPlaneDepth = 0;
   pointer.dragBoostType = null;
   pointer.resolvedDragTarget = null;
   pointer.downBeeId = null;

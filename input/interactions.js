@@ -1,11 +1,12 @@
-import { BOOST_TYPE, CELL_STATE, CELL_TYPE } from '../data/enums.js';
-import { isWorkerSeatCell } from '../board/cellState.js';
+import { BEE_ROLE, BEE_STATE, BOOST_TYPE, CELL_STATE, CELL_TYPE } from '../data/enums.js';
+import { getCellById } from '../board/boardQueries.js';
+import { isWorkerSeatCell, removeCellOccupant } from '../board/cellState.js';
 import { getRoyalRushStacks, registerRoyalRush } from '../economy/boosts.js';
 import { grantCellReward } from '../economy/rewards.js';
 import { tryBuildOrUpgrade } from '../economy/buildings.js';
 import { evaluateGateConditions } from '../economy/gates.js';
 import { getSelectedBee } from '../bees/beeQueries.js';
-import { assignBeeToCell, setBeeGathererRole } from '../bees/beeAssignments.js';
+import { assignBeeToCell, releaseWorkTarget } from '../bees/beeAssignments.js';
 import { mergeBees } from '../bees/beeMerging.js';
 import { refreshCellMaterial } from '../scene/materials.js';
 import { updateBoostGhost } from '../ui/summonBar.js';
@@ -30,8 +31,34 @@ var dragPreviewCandidate = new THREE.Vector3();
 var dragPreviewFallback = new THREE.Vector3();
 var dragPreviewCameraDir = new THREE.Vector2();
 var dragPreviewPointDir = new THREE.Vector2();
+var dragPreviewPlaneNormal = new THREE.Vector3();
+var dragPreviewPlane = new THREE.Plane();
 
 var DRAG_PREVIEW_FRONT_DOT_MIN = 0.08;
+
+function dropBeeAtWorldPos(bee, worldPos) {
+  if (!bee || !worldPos) { return; }
+  releaseWorkTarget(bee);
+  if (bee.seatCellId !== null) {
+    var seatedCell = getCellById(bee.seatCellId);
+    if (seatedCell) { removeCellOccupant(seatedCell, bee.id); }
+  }
+  bee.role = BEE_ROLE.GATHERER;
+  bee.isWorker = false;
+  bee.seatCellId = null;
+  bee.targetCellId = null;
+  bee.workTargetCellId = null;
+  bee.forcedWorkTarget = null;
+  bee.landedTheta = null;
+  bee.gatherPhase = 'released';
+  bee.state = BEE_STATE.IDLE;
+  bee.pos.copy(worldPos);
+  bee.origin.copy(worldPos);
+  bee.targetPos.copy(worldPos);
+  bee.travelT = 1.0;
+  bee.travelDur = 0.0001;
+  bee.idleTimer = 0.3;
+}
 
 function getDragPreviewSurfaceRadius(bee) {
   var bodyRadius = (bee && bee.interactionRadius) ? bee.interactionRadius : 0.34;
@@ -46,6 +73,28 @@ function getCameraFrontDir(camera) {
     dragPreviewCameraDir.normalize();
   }
   return dragPreviewCameraDir;
+}
+
+function clampPreviewDirToFrontFace(dir, camera) {
+  getCameraFrontDir(camera);
+  if (dir.lengthSq() < 0.0001) {
+    dir.set(dragPreviewCameraDir.x, dragPreviewCameraDir.y);
+    return dir;
+  }
+  dir.normalize();
+  var dot = dir.dot(dragPreviewCameraDir);
+  if (dot >= DRAG_PREVIEW_FRONT_DOT_MIN) { return dir; }
+
+  var side = (dragPreviewCameraDir.x * dir.y) - (dragPreviewCameraDir.y * dir.x);
+  var tangentSign = side < 0 ? -1 : 1;
+  var tangentX = -dragPreviewCameraDir.y;
+  var tangentY = dragPreviewCameraDir.x;
+  var tangentScale = Math.sqrt(Math.max(0, 1 - DRAG_PREVIEW_FRONT_DOT_MIN * DRAG_PREVIEW_FRONT_DOT_MIN)) * tangentSign;
+  dir.set(
+    dragPreviewCameraDir.x * DRAG_PREVIEW_FRONT_DOT_MIN + tangentX * tangentScale,
+    dragPreviewCameraDir.y * DRAG_PREVIEW_FRONT_DOT_MIN + tangentY * tangentScale
+  );
+  return dir.normalize();
 }
 
 function isValidDragPreviewPos(pos, camera, dragRadius) {
@@ -71,14 +120,48 @@ function projectToVisibleDragSurface(sourcePos, camera, dragRadius, out) {
   } else {
     dragPreviewPointDir.normalize();
   }
-  if (dragPreviewPointDir.dot(dragPreviewCameraDir) < DRAG_PREVIEW_FRONT_DOT_MIN) {
-    dragPreviewPointDir.lerp(dragPreviewCameraDir, 0.85).normalize();
-    if (dragPreviewPointDir.dot(dragPreviewCameraDir) < DRAG_PREVIEW_FRONT_DOT_MIN) {
-      dragPreviewPointDir.copy(dragPreviewCameraDir);
-    }
-  }
+  clampPreviewDirToFrontFace(dragPreviewPointDir, camera);
   out.set(dragPreviewPointDir.x * dragRadius, y, dragPreviewPointDir.y * dragRadius);
   return out;
+}
+
+function constrainDragPreviewToFrontFace(pos, camera, dragRadius, out) {
+  if (!pos || !camera || !out) { return false; }
+  out.copy(pos);
+  getCameraFrontDir(camera);
+  var radial = Math.sqrt(out.x * out.x + out.z * out.z);
+  if (radial < dragRadius - 0.0001) {
+    if (radial < 0.0001) {
+      out.x = dragPreviewCameraDir.x * dragRadius;
+      out.z = dragPreviewCameraDir.y * dragRadius;
+      radial = dragRadius;
+    } else {
+      var radialScale = dragRadius / radial;
+      out.x *= radialScale;
+      out.z *= radialScale;
+      radial = dragRadius;
+    }
+  }
+  dragPreviewPointDir.set(out.x, out.z);
+  if (dragPreviewPointDir.lengthSq() < 0.0001) {
+    dragPreviewPointDir.set(dragPreviewCameraDir.x, dragPreviewCameraDir.y);
+  } else {
+    dragPreviewPointDir.normalize();
+  }
+  clampPreviewDirToFrontFace(dragPreviewPointDir, camera);
+  out.x = dragPreviewPointDir.x * radial;
+  out.z = dragPreviewPointDir.y * radial;
+  return true;
+}
+
+function projectRayToDragPlane(ray, camera, planeDepth, dragRadius, out) {
+  if (!ray || !camera || !out || planeDepth <= 0.0001) { return false; }
+  camera.getWorldDirection(dragPreviewPlaneNormal);
+  if (dragPreviewPlaneNormal.lengthSq() < 0.0001) { return false; }
+  dragPreviewFallback.copy(camera.position).addScaledVector(dragPreviewPlaneNormal.normalize(), planeDepth);
+  dragPreviewPlane.setFromNormalAndCoplanarPoint(dragPreviewPlaneNormal, dragPreviewFallback);
+  if (!ray.intersectPlane(dragPreviewPlane, out)) { return false; }
+  return constrainDragPreviewToFrontFace(out, camera, dragRadius, out);
 }
 
 function intersectPreviewCylinder(ray, dragRadius, out) {
@@ -155,6 +238,8 @@ export function beginBoostDrag(boostType, x, y) {
   pointer.dragHoverCellId = null;
   pointer.dragHoverTargetKind = null;
   pointer.dragVisualPos = null;
+  pointer.dragMinRadius = 0;
+  pointer.dragPlaneDepth = 0;
   pointer.resolvedDragTarget = null;
   pointer.edgeRotateDir = 0;
   pointer.edgeRotateTimer = 0;
@@ -175,19 +260,32 @@ export function updateBeeDragPreviewPos(bee, screenX, screenY) {
 
   var camera = getCameraRef();
   var dragRadius = getDragPreviewSurfaceRadius(bee);
+  var screenRay = getScreenRay(screenX, screenY);
+  var dragSourcePos = pointer.dragVisualPos || (bee.mesh ? bee.mesh.position : null) || bee.pos;
+  if (!pointer.dragPlaneDepth) {
+    camera.getWorldDirection(dragPreviewPlaneNormal);
+    pointer.dragPlaneDepth = Math.max(0.0001, dragSourcePos.clone().sub(camera.position).dot(dragPreviewPlaneNormal.normalize()));
+  }
   if (!pointer.dragVisualPos) { pointer.dragVisualPos = new THREE.Vector3(); }
 
-  if (intersectPreviewCylinder(getScreenRay(screenX, screenY), dragRadius, dragPreviewCandidate) &&
-      isValidDragPreviewPos(dragPreviewCandidate, camera, dragRadius)) {
+  // Keep the selected bee on a single stable camera-depth plane for the
+  // entire drag so it does not snap back toward the hive shell.
+  if (projectRayToDragPlane(screenRay, camera, pointer.dragPlaneDepth, dragRadius, dragPreviewCandidate)) {
     pointer.dragVisualPos.copy(dragPreviewCandidate);
     return pointer.dragVisualPos;
   }
 
-  if (isValidDragPreviewPos(pointer.dragVisualPos, camera, dragRadius)) {
+  if (intersectPreviewCylinder(screenRay, dragRadius, dragPreviewFallback) &&
+      isValidDragPreviewPos(dragPreviewFallback, camera, dragRadius)) {
+    pointer.dragVisualPos.copy(dragPreviewFallback);
     return pointer.dragVisualPos;
   }
 
-  projectToVisibleDragSurface(bee.pos || bee.mesh.position, camera, dragRadius, dragPreviewFallback);
+  if (pointer.dragVisualPos) {
+    return pointer.dragVisualPos;
+  }
+
+  projectToVisibleDragSurface(dragSourcePos, camera, dragRadius, dragPreviewFallback);
   pointer.dragVisualPos.copy(dragPreviewFallback);
   return pointer.dragVisualPos;
 }
@@ -201,6 +299,8 @@ export function updateBeeDragInteraction(bee, screenX, screenY) {
     pointer.edgeRotateDir = 0;
     pointer.edgeRotateTimer = 0;
     pointer.dragVisualPos = null;
+    pointer.dragMinRadius = 0;
+    pointer.dragPlaneDepth = 0;
     return;
   }
 
@@ -251,9 +351,10 @@ export function applySelectedBeeDragDrop(screenX, screenY) {
     return;
   }
 
-  if (selectedBee.isWorker && selectedBee.seatCellId !== null) {
-    setBeeGathererRole(selectedBee, true);
-    setBuildingToastRef('Bee switched to gatherer', 1.6);
+  if (pointer.dragVisualPos) {
+    var wasWorker = selectedBee.isWorker;
+    dropBeeAtWorldPos(selectedBee, pointer.dragVisualPos);
+    setBuildingToastRef(wasWorker ? 'Bee released off seat' : 'Bee repositioned', 1.4);
     selectBeeRef(null);
     return;
   }

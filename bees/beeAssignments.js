@@ -112,6 +112,30 @@ export function setBeeWorkerRole(bee) {
   bee.carryNectar = 0;
 }
 
+export function dropBeeAtWorldPos(bee, worldPos) {
+  if (!bee || !worldPos) { return; }
+  releaseWorkTarget(bee);
+  if (bee.seatCellId !== null) {
+    var seatedCell = getCellById(bee.seatCellId);
+    if (seatedCell) { removeCellOccupant(seatedCell, bee.id); }
+  }
+  bee.role = BEE_ROLE.GATHERER;
+  bee.isWorker = false;
+  bee.seatCellId = null;
+  bee.targetCellId = null;
+  bee.workTargetCellId = null;
+  bee.forcedWorkTarget = null;
+  bee.landedTheta = null;
+  bee.gatherPhase = 'released';
+  bee.state = BEE_STATE.IDLE;
+  bee.pos.copy(worldPos);
+  bee.origin.copy(worldPos);
+  bee.targetPos.copy(worldPos);
+  bee.travelT = 1.0;
+  bee.travelDur = 0.0001;
+  bee.idleTimer = Math.max(0.3, getBeeGatherRestDuration(bee.level) * 0.35);
+}
+
 export function beeCanWorkTargetCell(bee, targetCell) {
   if (!bee || bee.seatCellId === null || !targetCell) { return false; }
   if (bee.state !== BEE_STATE.IDLE_ON_SEAT && bee.state !== BEE_STATE.WORKING) { return false; }

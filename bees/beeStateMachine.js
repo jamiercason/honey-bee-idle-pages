@@ -59,7 +59,7 @@ function updateBeeTravelState(bee, dt) {
     bee.travelT = 1.0;
     bee.pos.copy(bee.targetPos);
     if (bee.role === BEE_ROLE.GATHERER) {
-      if (bee.gatherPhase === 'outbound') {
+      if (bee.gatherPhase === 'outbound' || bee.gatherPhase === 'released_outbound') {
         bee.carryNectar = getBeeEffectiveGatherLoad(bee);
         var depositCell = chooseGathererDepositTarget(bee);
         bee.targetCellId = depositCell ? depositCell.id : null;
