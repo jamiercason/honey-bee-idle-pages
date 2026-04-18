@@ -54,7 +54,7 @@ function resetMergedBeeMotionState(bee, visibleAnchorPos, freezeWithAssignment) 
   bee.gatherRouteBump = 1.0;
   bee.gatherRouteSide = 0;
   bee.gatherRouteCurve = 0;
-  bee.gatherPhase = freezeWithAssignment ? null : 'merge_resolve_hover';
+  bee.gatherPhase = freezeWithAssignment ? null : 'released';
   pinBeeToVisibleBodyAnchor(bee, visibleAnchorPos);
   bee.lastFlightPos.copy(bee.pos);
 }

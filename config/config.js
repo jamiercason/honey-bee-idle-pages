@@ -62,4 +62,4 @@ export var CONFIG = {
   GATE_BUILDING_REQUIRED: false
 };
 
-export var BUILD_VERSION = 'V 0.0.0.10';
+export var BUILD_VERSION = 'V 0.0.0.11';
