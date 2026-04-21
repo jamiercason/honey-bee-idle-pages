@@ -232,6 +232,9 @@ export function resolveCellVisualStyle(vs, cell) {
   var emissiveIntensity = 0.62;
   var materialFamily = getCellMaterialKey(vs, cell);
   var bumpScale = 0.024;
+  var stateContrast = Math.max(0, Math.min(1.4, HIVE.CELL_STATE_CONTRAST));
+  var producingFillVis = Math.max(0, Math.min(1.4, HIVE.CELL_PRODUCING_FILL_VIS));
+  var fullGloss = Math.max(0, Math.min(1.2, HIVE.CELL_FULL_GLOSS));
 
   if (vs.state === CELL_STATE.LOCKED) {
     if (vs.obstacleClass === OBSTACLE_CLASS.GATE || cell.cellType === CELL_TYPE.GATE) {
@@ -256,14 +259,14 @@ export function resolveCellVisualStyle(vs, cell) {
       metalness = 0.0;
     }
   } else if (vs.state === CELL_STATE.OBSTACLE) {
-    color = VIS.COL_OBSTACLE;
-    emissive = VIS.EMI_OBSTACLE;
-    roughness = 0.80;
+    color = mixHex(VIS.COL_OBSTACLE, 0xd5bd88, 0.58);
+    emissive = mixHex(VIS.EMI_OBSTACLE, 0x4d2b06, 0.20);
+    roughness = 0.74;
     metalness = 0.02;
     if (vs.obstacleClass === OBSTACLE_CLASS.HEAVY) {
-      color = mixHex(VIS.COL_OBSTACLE, 0x5f3813, 0.52);
-      emissive = mixHex(VIS.EMI_OBSTACLE, 0x2a0d00, 0.44);
-      roughness = 0.88;
+      color = mixHex(VIS.COL_OBSTACLE, 0xb78a4e, 0.42);
+      emissive = mixHex(VIS.EMI_OBSTACLE, 0x3a1b03, 0.26);
+      roughness = 0.84;
       bumpScale = 0.048;
     } else if (vs.obstacleClass === OBSTACLE_CLASS.TREASURE || vs.rewardLeadType === BOOST_TYPE.ROYAL_JELLY) {
       color = mixHex(VIS.COL_REWARD_DORMANT, 0xd28f2b, 0.55);
@@ -284,9 +287,10 @@ export function resolveCellVisualStyle(vs, cell) {
       bumpScale = 0.050;
     }
     if (vs.workProgress > 0) {
-      color = addHexTint(color, 0xffd97d, vs.workProgress * 0.34);
-      emissive = addHexTint(emissive, 0xff9d22, vs.workProgress * 0.46);
-      roughness = Math.max(0.36, roughness - vs.workProgress * 0.24);
+      var workT = saturate01(vs.workProgress);
+      color = mixHex(color, 0xc29a3a, workT * 0.28);
+      emissive = addHexTint(emissive, 0xffa12e, workT * 0.28);
+      roughness = Math.max(0.46, roughness - workT * 0.14);
     }
   } else if (vs.state === CELL_STATE.DORMANT) {
     if (vs.cellRole === 'structure') {
@@ -295,17 +299,18 @@ export function resolveCellVisualStyle(vs, cell) {
       roughness = 0.60;
       metalness = 0.05;
     } else {
-      color = mixHex(VIS.COL_DORMANT, 0xcab998, 0.06);
-      emissive = mixHex(VIS.EMI_DORMANT, 0x2f4152, 0.08);
+      color = mixHex(0xd6c08f, 0xc59a4a, 0.10);
+      emissive = mixHex(0x4d2b06, 0x6c4108, 0.10);
       roughness = 0.76;
       metalness = 0.04;
       if (vs.isSeatable) {
-        emissive = addHexTint(emissive, 0xffc86b, 0.12);
+        emissive = addHexTint(emissive, 0xffc86b, 0.08);
       }
     }
     if (vs.activationProgress > 0) {
-      color = addHexTint(color, 0xffdf8d, vs.activationProgress * 0.26);
-      emissive = addHexTint(emissive, 0xffac2f, vs.activationProgress * 0.42);
+      var activateT = saturate01(vs.activationProgress);
+      color = mixHex(color, 0xc6a44e, activateT * 0.24);
+      emissive = addHexTint(emissive, 0xffac2f, activateT * 0.26);
       roughness = Math.max(0.40, roughness - vs.activationProgress * 0.12);
     }
   } else if (vs.state === CELL_STATE.ACTIVE) {
@@ -332,14 +337,25 @@ export function resolveCellVisualStyle(vs, cell) {
         emissive = addHexTint(emissive, 0xffc85d, saturate01(cell.buildingStoredNectar / Math.max(1, CONFIG.HATCHERY_NECTAR_BUFFER)));
       }
     } else {
-      color = mixHex(VIS.COL_OPEN, 0x8b5a10, 0.12 + vs.productionFill * 0.08);
-      emissive = mixHex(VIS.EMI_OPEN, VIS.EMI_HONEY, 0.03 + vs.productionFill * 0.08);
-      roughness = vs.readyToCollect ? 0.24 : lerp(0.60, 0.46, vs.productionFill);
-      metalness = lerp(0.01, 0.04, vs.productionFill);
-      bumpScale = lerp(0.026, 0.020, vs.productionFill);
+      var hasProduction = vs.productionFill > 0.04 || cell.nectarStored > 0.001 || cell.honeyStored > 0.001;
+      var producingT = vs.readyToCollect ? 1 : saturate01(vs.productionFill * producingFillVis);
+      if (!hasProduction) {
+        materialFamily = 'dormant_open';
+        color = mixHex(0xd6c08f, 0xc49b42, 0.14 + stateContrast * 0.03);
+        emissive = mixHex(VIS.EMI_OPEN, 0x4d2b06, 0.28);
+        roughness = 0.78;
+        metalness = 0.0;
+        bumpScale = 0.034;
+      } else {
+        color = mixHex(0xd6c08f, 0xc69b36, 0.18 + producingT * (0.32 + stateContrast * 0.06));
+        emissive = mixHex(VIS.EMI_OPEN, VIS.EMI_HONEY, 0.04 + producingT * (0.18 + stateContrast * 0.08));
+        roughness = vs.readyToCollect ? lerp(0.24, 0.16, fullGloss) : lerp(0.60, 0.36, producingT);
+        metalness = vs.readyToCollect ? lerp(0.05, 0.16, fullGloss) : lerp(0.01, 0.06, producingT);
+        bumpScale = lerp(0.030, 0.016, producingT);
+      }
       if (cell.nectarStored > 0.001) {
-        color = addHexTint(color, VIS.COL_NECTAR, 0.025);
-        emissive = addHexTint(emissive, VIS.EMI_NECTAR, 0.05);
+        color = addHexTint(color, VIS.COL_NECTAR, 0.04 + producingT * 0.04);
+        emissive = addHexTint(emissive, VIS.EMI_NECTAR, 0.08 + producingT * 0.06);
       }
     }
   }
@@ -349,8 +365,11 @@ export function resolveCellVisualStyle(vs, cell) {
     roughness = Math.max(0.18, roughness - 0.05);
   }
   if (vs.readyToCollect) {
-    color = addHexTint(color, 0xffd777, 0.04);
-    emissive = addHexTint(emissive, 0xffc938, 0.10);
+    color = mixHex(color, 0xb88a14, 0.10 + fullGloss * 0.08);
+    emissive = addHexTint(emissive, 0xffc938, 0.14 + fullGloss * 0.16);
+    emissiveIntensity += fullGloss * 0.22;
+    roughness = Math.max(0.14, roughness - fullGloss * 0.12);
+    metalness = Math.min(0.20, metalness + fullGloss * 0.06);
   }
   if (vs.isGoalCritical) {
     emissive = addHexTint(emissive, 0xffdd75, 0.24);
@@ -413,7 +432,7 @@ export function resolveCellHighlightState(vs, cell, ci) {
   if (vs.readyToCollect) {
     return {
       reason: 'ready',
-      colorTint: 0xfff4b0,
+      colorTint: 0xc99a24,
       emissiveTint: 0xffc938,
       emissiveIntensity: 1.18 + Math.pow(Math.abs(Math.sin(simTime * 2.8 + ci * 0.2)), 0.7) * 0.44
     };
@@ -468,8 +487,16 @@ export function cellMaterial(cell) {
     emissive: style.emissive,
     emissiveIntensity: style.emissiveIntensity,
     roughness: style.roughness,
-    metalness: style.metalness
+    metalness: style.metalness,
+    vertexColors: false,
+    side: THREE.FrontSide,
+    transparent: false,
+    opacity: 1,
+    depthWrite: true,
+    depthTest: true
   });
+  material.alphaMap = null;
+  material.alphaTest = 0;
   applyCellMaterialMaps(material, getCellMaterialMaps(style.materialFamily), style.bumpScale);
   material.userData.materialFamily = style.materialFamily;
   return material;
@@ -495,6 +522,13 @@ export function refreshCellMaterial(cell) {
   mesh.material.emissiveIntensity = style.emissiveIntensity;
   mesh.material.roughness = style.roughness;
   mesh.material.metalness = style.metalness;
+  mesh.material.vertexColors = false;
+  mesh.material.transparent = false;
+  mesh.material.opacity = 1;
+  mesh.material.depthWrite = true;
+  mesh.material.depthTest = true;
+  mesh.material.alphaMap = null;
+  mesh.material.alphaTest = 0;
   mesh.material.userData.materialFamily = style.materialFamily;
   applyCellMaterialMaps(mesh.material, getCellMaterialMaps(style.materialFamily), style.bumpScale);
   updateCellSurfaceLayers(cell, mesh, visualState, style);
@@ -571,12 +605,21 @@ export function updateCellSurfaceLayers(cell, mesh, vs, style) {
     return;
   }
   var honeyPresence = saturate01((honeyMix - 0.12) / 0.88);
-  var honeyColor = mixHex(0x7a4708, VIS.COL_HONEY, 0.34 + honeyPresence * 0.34);
+  var fillVis = Math.max(0, Math.min(1.4, HIVE.CELL_PRODUCING_FILL_VIS));
+  var fullGloss = Math.max(0, Math.min(1.2, HIVE.CELL_FULL_GLOSS));
+  var shimmer = Math.abs(Math.sin(getSimTimeRef() * 3.1 + cell.id * 0.47));
+  var honeyColor = vs.readyToCollect
+    ? mixHex(0x9f7410, 0xc89a23, 0.58 + shimmer * 0.04)
+    : mixHex(0x7a4708, VIS.COL_HONEY, 0.36 + honeyPresence * 0.40 + shimmer * 0.04);
   honeyFace.visible = true;
   honeyFace.material.color.setHex(honeyColor);
-  honeyFace.material.opacity = Math.min(0.42, 0.14 + honeyPresence * 0.10 + (vs.readyToCollect ? 0.02 : 0));
-  honeyFace.scale.set(0.96, lerp(0.34, 0.58, honeyPresence) + (vs.readyToCollect ? 0.02 : 0), 1.0);
-  honeyFace.position.y = faceCenter.y - HIVE.HEX_CIRCUMRADIUS * lerp(0.38, 0.31, honeyPresence);
+  honeyFace.material.opacity = Math.min(0.58, 0.14 + honeyPresence * (0.12 + fillVis * 0.10) + (vs.readyToCollect ? fullGloss * 0.12 : shimmer * 0.02));
+  honeyFace.scale.set(
+    0.94 + honeyPresence * 0.05,
+    lerp(0.34, 0.62, honeyPresence) + (vs.readyToCollect ? 0.08 + fullGloss * 0.05 : 0),
+    1.0
+  );
+  honeyFace.position.y = faceCenter.y - HIVE.HEX_CIRCUMRADIUS * lerp(0.39, vs.readyToCollect ? 0.26 : 0.31, honeyPresence);
   honeyFace.material.map = null;
   honeyFace.material.alphaMap = buildHoneyPoolTexture();
   honeyFace.material.alphaTest = 0.78;

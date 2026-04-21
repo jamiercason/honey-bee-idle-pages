@@ -389,20 +389,45 @@ export function makeLabelPlane(worldSize, px) {
   return { mesh: mesh, canvas: canvas, tex: tex, ctx: ctx, px: canvasPx };
 }
 
+function getCellSurfaceLabelRadius(cell) {
+  var lift = 0;
+  if (cell && cell.state === CELL_STATE.ACTIVE && cell.cellType === CELL_TYPE.GATE) { lift = 0.05; }
+  if (cell && cell.isReadyToCollect) { lift = 0.07; }
+  if (cell && cell.state === CELL_STATE.ACTIVE && cell.nectarStored > 0) { lift = Math.max(lift, 0.04); }
+  if (cell && cell.state === CELL_STATE.ACTIVE) { lift = Math.max(lift, 0.03); }
+  if (cell && cell.state === CELL_STATE.OBSTACLE && cell.cellType === CELL_TYPE.REWARD_BLOCKER) { lift = Math.max(lift, 0.02); }
+  return HIVE.CYLINDER_RADIUS + lift + HIVE.HEX_DEPTH * 0.64 + LABEL.CELL_SURFACE_OFFSET;
+}
+
+function bindCellLabelToSurface(label, cell) {
+  if (!label || !label.mesh || !cell) { return; }
+  var theta = cell.theta;
+  var radius = getCellSurfaceLabelRadius(cell);
+  label.mesh.position.set(
+    Math.cos(theta) * radius,
+    cell.worldPos.y + LABEL.CELL_SURFACE_Y_BIAS,
+    Math.sin(theta) * radius
+  );
+  label.mesh.rotation.set(0, Math.PI / 2 - theta, 0);
+  label.mesh.scale.setScalar(LABEL.CELL_SURFACE_SCALE);
+}
+
+function makeCellLabelPlane() {
+  return makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+}
+
 export function initCellLabels() {
-  var outward = HIVE.CYLINDER_RADIUS + HIVE.HEX_DEPTH + 0.05;
   for (var i = 0; i < stateRef.cells.length; i++) {
     var cell = stateRef.cells[i];
     if (cell.cellType === CELL_TYPE.GATE) {
-      var glbl = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+      var glbl = makeCellLabelPlane();
       glbl.lastGateReady = false;
       glbl.lastLevelComplete = false;
       glbl.lastBonusHoney = -1;
       glbl.lastBonusExtra = -1;
       glbl.lastGateState = '';
       glbl.lastGateProgress = -1;
-      glbl.mesh.position.set(Math.cos(cell.theta) * outward, cell.worldPos.y, Math.sin(cell.theta) * outward);
-      glbl.mesh.rotation.y = Math.PI / 2 - cell.theta;
+      bindCellLabelToSurface(glbl, cell);
       drawGateLabel(glbl.ctx, LABEL.CELL_SIZE, false, false, getStageExitBonus(), cell, evaluateGateConditions());
       glbl.tex.needsUpdate = true;
       sceneRef.add(glbl.mesh);
@@ -410,11 +435,10 @@ export function initCellLabels() {
       continue;
     }
     if (cell.cellType === CELL_TYPE.REWARD_BLOCKER && (cell.state === CELL_STATE.LOCKED || cell.state === CELL_STATE.OBSTACLE)) {
-      var lbl1 = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+      var lbl1 = makeCellLabelPlane();
       lbl1.lastProgress = -1;
       lbl1.lastRewardState = '';
-      lbl1.mesh.position.set(Math.cos(cell.theta) * outward, cell.worldPos.y, Math.sin(cell.theta) * outward);
-      lbl1.mesh.rotation.y = Math.PI / 2 - cell.theta;
+      bindCellLabelToSurface(lbl1, cell);
       drawRewardBlockerLabel(lbl1.ctx, LABEL.CELL_SIZE, cell.rewardType, cell.rewardAmount, false, false);
       lbl1.tex.needsUpdate = true;
       sceneRef.add(lbl1.mesh);
@@ -422,32 +446,29 @@ export function initCellLabels() {
       continue;
     }
     if (cell.state === CELL_STATE.OBSTACLE) {
-      var lbl2 = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+      var lbl2 = makeCellLabelPlane();
       lbl2.lastProgress = -1;
-      lbl2.mesh.position.set(Math.cos(cell.theta) * outward, cell.worldPos.y, Math.sin(cell.theta) * outward);
-      lbl2.mesh.rotation.y = Math.PI / 2 - cell.theta;
+      bindCellLabelToSurface(lbl2, cell);
       drawObstacleLabel(lbl2.ctx, LABEL.CELL_SIZE, cell.row);
       lbl2.tex.needsUpdate = true;
       sceneRef.add(lbl2.mesh);
       cellLabelMap[cell.id] = lbl2;
     }
     if (cell.state === CELL_STATE.DORMANT) {
-      var dlbl = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+      var dlbl = makeCellLabelPlane();
       dlbl.lastActivationState = '';
-      dlbl.mesh.position.set(Math.cos(cell.theta) * outward, cell.worldPos.y, Math.sin(cell.theta) * outward);
-      dlbl.mesh.rotation.y = Math.PI / 2 - cell.theta;
+      bindCellLabelToSurface(dlbl, cell);
       drawDormantLabel(dlbl.ctx, LABEL.CELL_SIZE, cell.nectarRequired, cell.nectarStored, isWorkerSeatCell(cell));
       dlbl.tex.needsUpdate = true;
       sceneRef.add(dlbl.mesh);
       cellLabelMap[cell.id] = dlbl;
     }
     if (cell.state === CELL_STATE.ACTIVE) {
-      var olbl = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+      var olbl = makeCellLabelPlane();
       olbl.lastNectar = -1;
       olbl.lastHoney = -1;
       olbl.lastReady = false;
-      olbl.mesh.position.set(Math.cos(cell.theta) * outward, cell.worldPos.y, Math.sin(cell.theta) * outward);
-      olbl.mesh.rotation.y = Math.PI / 2 - cell.theta;
+      bindCellLabelToSurface(olbl, cell);
       olbl.mesh.visible = false;
       sceneRef.add(olbl.mesh);
       openCellLabelMap[cell.id] = olbl;
@@ -481,13 +502,11 @@ export function removeBeeLabelFor(bee) {
 
 export function ensureActiveCellLabel(cell) {
   if (openCellLabelMap[cell.id]) { return; }
-  var lOut = HIVE.CYLINDER_RADIUS + HIVE.HEX_DEPTH + 0.05;
-  var nLbl = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+  var nLbl = makeCellLabelPlane();
   nLbl.lastNectar = -1;
   nLbl.lastHoney = -1;
   nLbl.lastReady = false;
-  nLbl.mesh.position.set(Math.cos(cell.theta) * lOut, cell.worldPos.y, Math.sin(cell.theta) * lOut);
-  nLbl.mesh.rotation.y = Math.PI / 2 - cell.theta;
+  bindCellLabelToSurface(nLbl, cell);
   nLbl.mesh.visible = false;
   sceneRef.add(nLbl.mesh);
   openCellLabelMap[cell.id] = nLbl;
@@ -495,13 +514,11 @@ export function ensureActiveCellLabel(cell) {
 
 export function ensureObstacleCellLabel(cell) {
   if (!cell || cellLabelMap[cell.id] || cell.state !== CELL_STATE.OBSTACLE || cell.cellType === CELL_TYPE.GATE) { return; }
-  var rOut = HIVE.CYLINDER_RADIUS + HIVE.HEX_DEPTH + 0.05;
-  var lbl = makeLabelPlane(LABEL.CELL_WORLD, LABEL.CELL_SIZE);
+  var lbl = makeCellLabelPlane();
   lbl.lastProgress = -1;
   lbl.lastRewardState = '';
   lbl.lastActivationState = '';
-  lbl.mesh.position.set(Math.cos(cell.theta) * rOut, cell.worldPos.y, Math.sin(cell.theta) * rOut);
-  lbl.mesh.rotation.y = Math.PI / 2 - cell.theta;
+  bindCellLabelToSurface(lbl, cell);
   if (cell.cellType === CELL_TYPE.REWARD_BLOCKER) {
     drawRewardBlockerLabel(lbl.ctx, LABEL.CELL_SIZE, cell.rewardType, cell.rewardAmount, false, false);
   } else {
@@ -520,6 +537,7 @@ export function updateLabels(dt) {
     if (lbl) {
       var isRewardCell = (cell.cellType === CELL_TYPE.REWARD_BLOCKER);
       var labelVisible = (cell.state === CELL_STATE.OBSTACLE) || (cell.state === CELL_STATE.DORMANT) || (isRewardCell && cell.state === CELL_STATE.LOCKED && !cell.rewardCollected);
+      bindCellLabelToSurface(lbl, cell);
       lbl.mesh.visible = labelVisible;
       if (labelVisible) {
         if (cell.state === CELL_STATE.DORMANT) {
@@ -566,6 +584,7 @@ export function updateLabels(dt) {
       }
     }
     if (olbl) {
+      bindCellLabelToSurface(olbl, cell);
       if (cell.state !== CELL_STATE.ACTIVE) {
         olbl.mesh.visible = false;
       } else {
@@ -600,6 +619,7 @@ export function updateLabels(dt) {
   for (var gid in gateLabelMap) {
     var glbl = gateLabelMap[gid];
     var gateCell = getCellById(gid);
+    if (gateCell) { bindCellLabelToSurface(glbl, gateCell); }
     var gateBonus = getStageExitBonus();
     var gateConds = evaluateGateConditions();
     var gateState = gateCell ? gateCell.state : '';

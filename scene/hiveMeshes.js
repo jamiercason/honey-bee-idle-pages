@@ -21,45 +21,157 @@ export function setHiveMeshesRuntime(runtime) {
   getCoreCylRef = runtime && runtime.getCoreCyl ? runtime.getCoreCyl : getCoreCylRef;
 }
 
+function clampTunable(value, min, max, fallback) {
+  value = Number(value);
+  if (!isFinite(value)) { return fallback; }
+  return Math.max(min, Math.min(max, value));
+}
+
+function buildHexRing(radius, scale) {
+  var verts = [];
+  for (var v = 0; v < 6; v++) {
+    var angle = (Math.PI / 6) + ((Math.PI / 3) * v);
+    verts.push({
+      x: Math.cos(angle) * radius * scale,
+      y: Math.sin(angle) * radius * scale
+    });
+  }
+  return verts;
+}
+
+function buildHexPerimeter(radius, scale, sideSegments) {
+  var corners = buildHexRing(radius, scale);
+  var verts = [];
+  for (var side = 0; side < 6; side++) {
+    var a = corners[side];
+    var b = corners[(side + 1) % 6];
+    for (var s = 0; s < sideSegments; s++) {
+      var t = s / sideSegments;
+      verts.push({
+        x: lerp(a.x, b.x, t),
+        y: lerp(a.y, b.y, t)
+      });
+    }
+  }
+  return verts;
+}
+
+function mapCurvedPoint(cellTheta, cylRadius, lx, ly, lz) {
+  var arcAngle = lx / cylRadius;
+  var thetaFinal = cellTheta + arcAngle;
+  var rad = cylRadius + lz;
+  return {
+    x: Math.cos(thetaFinal) * rad,
+    y: ly,
+    z: Math.sin(thetaFinal) * rad,
+    theta: thetaFinal
+  };
+}
+
+function getCellRearRelief(depth) {
+  return Math.max(0.006, depth * 0.11);
+}
+
+export function getCoreCylinderRadius() {
+  var inset = clampTunable(HIVE.CORE_SURFACE_INSET, -0.02, 0.16, 0.006);
+  return Math.max(0.1, HIVE.CYLINDER_RADIUS + getCellRearRelief(HIVE.HEX_DEPTH) - inset);
+}
+
+export function getCoreOccluderRadius() {
+  return Math.max(0.1, getCoreCylinderRadius() - 0.02);
+}
+
 export function buildCurvedHexGeometry(cellTheta, cylRadius, circumradius, depth, gap) {
   var THREE = globalThis.THREE;
   var r = circumradius * gap;
-  var v;
-  var angle;
-  var vx;
-  var vy;
-  var shape = new THREE.Shape();
-  for (v = 0; v < 6; v++) {
-    angle = (Math.PI / 6) + ((Math.PI / 3) * v);
-    vx = Math.cos(angle) * r;
-    vy = Math.sin(angle) * r;
-    if (v === 0) { shape.moveTo(vx, vy); } else { shape.lineTo(vx, vy); }
-  }
-  shape.closePath();
+  var faceScale = clampTunable(HIVE.HEX_FACE_SCALE, 0.86, 0.985, 0.94);
+  var recess = clampTunable(HIVE.HEX_FACE_RECESS, 0.0, Math.max(0.001, depth * 0.12), Math.min(0.008, depth * 0.08));
+  var bevelInset = clampTunable(HIVE.HEX_BEVEL_INSET, 0.0, Math.max(0.001, r * 0.16), 0.090);
+  var sideSegments = Math.round(clampTunable(HIVE.HEX_FACE_SEGMENTS, 2, 8, 5));
+  var bevelScale = 1 - (Math.max(0.001, bevelInset) / Math.max(0.001, r));
+  var innerScale = Math.max(0.82, Math.min(faceScale, bevelScale, 0.985));
+  var midScaleA = innerScale * 0.36;
+  var midScaleB = innerScale * 0.68;
+  var faceZ = Math.max(depth * 0.58, depth - (depth * 0.34));
+  var centerZ = faceZ - recess;
+  var edgeZ = getCellRearRelief(depth);
+  var backZ = Math.max(0, Math.min(edgeZ - 0.002, getCoreCylinderRadius() - cylRadius + 0.001));
+  var rings = [
+    { scale: midScaleA, z: centerZ + (recess * 0.18) },
+    { scale: midScaleB, z: centerZ + (recess * 0.55) },
+    { scale: innerScale, z: faceZ },
+    { scale: 1.0, z: edgeZ }
+  ];
+  var positions = [];
+  var uvs = [];
+  var colors = [];
+  var indices = [];
 
-  var extrudeSettings = { depth: depth, bevelEnabled: false, steps: 6 };
-  var geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
-  var pos = geo.attributes.position;
-  var vcount = pos.count;
-  var lx;
-  var ly;
-  var lz;
-  var arcAngle;
-  var thetaFinal;
-  var rad;
-
-  for (v = 0; v < vcount; v++) {
-    lx = pos.getX(v);
-    ly = pos.getY(v);
-    lz = pos.getZ(v);
-    arcAngle = lx / cylRadius;
-    thetaFinal = cellTheta + arcAngle;
-    rad = cylRadius + lz;
-    pos.setXYZ(v, Math.cos(thetaFinal) * rad, ly, Math.sin(thetaFinal) * rad);
+  function getWaxShade(lx, ly, ringScale) {
+    var seam = clampTunable(HIVE.CELL_SEAM_SHADOW, 0, 0.5, 0.24);
+    var variation = clampTunable(HIVE.CELL_WAX_VARIATION, 0, 0.24, 0.08);
+    var edgeShade = 1 - seam * Math.pow(Math.max(0, ringScale), 2.2);
+    var grain = Math.sin((cellTheta * 19.7) + lx * 3.1 + ly * 2.3) * Math.sin((cellTheta * 11.3) + lx * 0.9 - ly * 2.7);
+    return Math.max(0.48, Math.min(1.04, edgeShade + grain * variation));
   }
 
-  pos.needsUpdate = true;
+  function pushVertex(lx, ly, lz, ringScale) {
+    var p = mapCurvedPoint(cellTheta, cylRadius, lx, ly, lz);
+    var shade = getWaxShade(lx, ly, ringScale || 0);
+    positions.push(p.x, p.y, p.z);
+    uvs.push((lx / (r * 2)) + 0.5, (ly / (r * 2)) + 0.5);
+    colors.push(shade, shade, shade);
+    return (positions.length / 3) - 1;
+  }
+
+  var centerIndex = pushVertex(0, 0, centerZ, 0);
+  var ringIndices = [];
+  for (var ri = 0; ri < rings.length; ri++) {
+    var perimeter = buildHexPerimeter(r, rings[ri].scale, sideSegments);
+    var ring = [];
+    for (var pi = 0; pi < perimeter.length; pi++) {
+      ring.push(pushVertex(perimeter[pi].x, perimeter[pi].y, rings[ri].z, rings[ri].scale));
+    }
+    ringIndices.push(ring);
+  }
+
+  var perimeterCount = ringIndices[0].length;
+  for (var fi = 0; fi < perimeterCount; fi++) {
+    indices.push(centerIndex, ringIndices[0][(fi + 1) % perimeterCount], ringIndices[0][fi]);
+  }
+
+  for (var band = 0; band < ringIndices.length - 1; band++) {
+    var inner = ringIndices[band];
+    var outer = ringIndices[band + 1];
+    for (var bi = 0; bi < perimeterCount; bi++) {
+      var bj = (bi + 1) % perimeterCount;
+      indices.push(inner[bi], outer[bj], outer[bi]);
+      indices.push(inner[bi], inner[bj], outer[bj]);
+    }
+  }
+
+  if (backZ < edgeZ - 0.001) {
+    var outerRing = ringIndices[ringIndices.length - 1];
+    var backingRing = [];
+    var backingPerimeter = buildHexPerimeter(r, 1.0, sideSegments);
+    for (var bpi = 0; bpi < backingPerimeter.length; bpi++) {
+      backingRing.push(pushVertex(backingPerimeter[bpi].x, backingPerimeter[bpi].y, backZ, 1.0));
+    }
+    for (var si = 0; si < perimeterCount; si++) {
+      var sj = (si + 1) % perimeterCount;
+      indices.push(outerRing[si], backingRing[sj], outerRing[sj]);
+      indices.push(outerRing[si], backingRing[si], backingRing[sj]);
+    }
+  }
+
+  var geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+  geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2));
+  geo.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+  geo.setIndex(indices);
   geo.computeVertexNormals();
+  geo.computeBoundingSphere();
+  geo.computeBoundingBox();
   return geo;
 }
 
@@ -190,10 +302,11 @@ export function createCoreCyl() {
   var THREE = globalThis.THREE;
   var hiveVisibleHeight = HIVE.ROWS * HIVE.VERTICAL_SPACING;
   var coreCylHeight = hiveVisibleHeight * 2.4;
+  var coreRadius = getCoreCylinderRadius();
   var coreCyl = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      HIVE.CYLINDER_RADIUS - 0.72,
-      HIVE.CYLINDER_RADIUS - 0.72,
+      coreRadius,
+      coreRadius,
       coreCylHeight,
       48,
       1,
@@ -209,10 +322,11 @@ export function createCoreOccluder() {
   var THREE = globalThis.THREE;
   var hiveVisibleHeight = HIVE.ROWS * HIVE.VERTICAL_SPACING;
   var occluderHeight = hiveVisibleHeight * 2.45;
+  var occluderRadius = getCoreOccluderRadius();
   var occluder = new THREE.Mesh(
     new THREE.CylinderGeometry(
-      HIVE.CYLINDER_RADIUS - 0.48,
-      HIVE.CYLINDER_RADIUS - 0.48,
+      occluderRadius,
+      occluderRadius,
       occluderHeight,
       24,
       1,

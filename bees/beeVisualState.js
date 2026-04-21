@@ -25,6 +25,7 @@ export function updateBeeReadabilityVisual(bee) {
   var isWorker = (bee.role === BEE_ROLE.WORKER);
   var activeBoost = (bee.royalJellyTimer > 0 || bee.mergeSurgeTimer > 0);
   var workingPulse = 0.5 + Math.abs(Math.sin(simTime * 5.4 + bee.id * 0.6)) * 0.5;
+  var isSeated = bee.seatCellId !== null;
 
   if (!PRESENTATION.BEE_READABILITY_ENABLED) {
     if (roleNode) { roleNode.visible = false; }
@@ -37,12 +38,14 @@ export function updateBeeReadabilityVisual(bee) {
 
   if (contactShadow && contactShadow.material) {
     contactShadow.visible = true;
-    contactShadow.material.opacity = isWorker
-      ? 0.24 + (bee.state === BEE_STATE.WORKING ? 0.12 : 0.04)
-      : 0.18 + ((bee.carryNectar || 0) > 0 ? 0.08 : 0.0);
-    contactShadow.scale.setScalar(isWorker ? 1.02 : 0.92);
-    contactShadow.position.y = -beeConfigRef.BODY_R * 0.42;
-    contactShadow.position.z = isWorker ? -beeConfigRef.BODY_R * 0.04 : -beeConfigRef.BODY_R * 0.10;
+    contactShadow.material.opacity = isSeated
+      ? 0.34 + (bee.state === BEE_STATE.WORKING ? 0.08 : 0.0)
+      : isWorker
+        ? 0.22 + (bee.state === BEE_STATE.WORKING ? 0.08 : 0.03)
+        : 0.18 + ((bee.carryNectar || 0) > 0 ? 0.08 : 0.0);
+    contactShadow.scale.setScalar(isSeated ? 1.24 : isWorker ? 1.02 : 0.92);
+    contactShadow.position.y = -beeConfigRef.BODY_R * (isSeated ? 0.46 : 0.42);
+    contactShadow.position.z = isSeated ? -beeConfigRef.BODY_R * 0.02 : isWorker ? -beeConfigRef.BODY_R * 0.04 : -beeConfigRef.BODY_R * 0.10;
   }
 
   if (bodyHalo && bodyHalo.material) {

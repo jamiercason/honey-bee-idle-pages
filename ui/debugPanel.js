@@ -4,6 +4,7 @@ import { CAM, CAM_CONTEXT } from '../config/cameraConfig.js';
 import { LIGHTING } from '../config/lightingConfig.js';
 import { SCENE_ART } from '../config/sceneArtConfig.js';
 import { PRESENTATION } from '../config/presentationConfig.js';
+import { LABEL } from '../config/labelConfig.js';
 
 var stateRef = null;
 var getCameraRef = function() { return null; };
@@ -85,6 +86,17 @@ export var dbgDefs = [
   { stem:'vspace',  get:function(){ return HIVE.VERTICAL_SPACING; }, set:function(v){ HIVE.VERTICAL_SPACING = Math.max(0.1, v); }, step:0.05, fmt:function(v){ return v.toFixed(2); } },
   { stem:'hexr',    get:function(){ return HIVE.HEX_CIRCUMRADIUS; }, set:function(v){ HIVE.HEX_CIRCUMRADIUS = Math.max(0.1, v); }, step:0.05, fmt:function(v){ return v.toFixed(2); } },
   { stem:'hexd',    get:function(){ return HIVE.HEX_DEPTH; }, set:function(v){ HIVE.HEX_DEPTH = Math.max(0.02, v); }, step:0.02, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'coreinset', get:function(){ return HIVE.CORE_SURFACE_INSET; }, set:function(v){ HIVE.CORE_SURFACE_INSET = Math.max(-0.02, Math.min(0.16, v)); }, step:0.005, fmt:function(v){ return v.toFixed(3); } },
+  { stem:'facescale', get:function(){ return HIVE.HEX_FACE_SCALE; }, set:function(v){ HIVE.HEX_FACE_SCALE = Math.max(0.90, Math.min(0.995, v)); }, step:0.01, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'bevelin', get:function(){ return HIVE.HEX_BEVEL_INSET; }, set:function(v){ HIVE.HEX_BEVEL_INSET = Math.max(0, Math.min(0.22, v)); }, step:0.01, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'facerecess', get:function(){ return HIVE.HEX_FACE_RECESS; }, set:function(v){ HIVE.HEX_FACE_RECESS = Math.max(0, Math.min(0.03, v)); }, step:0.005, fmt:function(v){ return v.toFixed(3); } },
+  { stem:'faceseg', get:function(){ return HIVE.HEX_FACE_SEGMENTS; }, set:function(v){ HIVE.HEX_FACE_SEGMENTS = Math.max(2, Math.min(10, Math.round(v))); }, step:1, fmt:function(v){ return Math.round(v) + ''; } },
+  { stem:'lblscale', get:function(){ return LABEL.CELL_SURFACE_SCALE; }, set:function(v){ LABEL.CELL_SURFACE_SCALE = Math.max(0.55, Math.min(1.1, v)); }, step:0.02, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'lbloffset', get:function(){ return LABEL.CELL_SURFACE_OFFSET; }, set:function(v){ LABEL.CELL_SURFACE_OFFSET = Math.max(0.004, Math.min(0.08, v)); }, step:0.004, fmt:function(v){ return v.toFixed(3); } },
+  { stem:'lblybias', get:function(){ return LABEL.CELL_SURFACE_Y_BIAS; }, set:function(v){ LABEL.CELL_SURFACE_Y_BIAS = Math.max(-0.25, Math.min(0.25, v)); }, step:0.01, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'statecontrast', get:function(){ return HIVE.CELL_STATE_CONTRAST; }, set:function(v){ HIVE.CELL_STATE_CONTRAST = Math.max(0, Math.min(1.4, v)); refreshAllCellMaterialsRef(); }, step:0.05, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'fillvis', get:function(){ return HIVE.CELL_PRODUCING_FILL_VIS; }, set:function(v){ HIVE.CELL_PRODUCING_FILL_VIS = Math.max(0, Math.min(1.4, v)); refreshAllCellMaterialsRef(); }, step:0.05, fmt:function(v){ return v.toFixed(2); } },
+  { stem:'fullgloss', get:function(){ return HIVE.CELL_FULL_GLOSS; }, set:function(v){ HIVE.CELL_FULL_GLOSS = Math.max(0, Math.min(1.2, v)); refreshAllCellMaterialsRef(); }, step:0.05, fmt:function(v){ return v.toFixed(2); } },
   { stem:'gap',     get:function(){ return HIVE.HEX_GAP_FACTOR; }, set:function(v){ HIVE.HEX_GAP_FACTOR = Math.max(0.5, Math.min(1.0, v)); }, step:0.01, fmt:function(v){ return v.toFixed(3); } },
   { stem:'ts',      get:function(){ return stateRef.gameTimeScale; }, set:function(v){ stateRef.gameTimeScale = Math.max(0.05, Math.min(8, v)); }, step:0.1, fmt:function(v){ return v.toFixed(2) + 'x'; } }
 ];

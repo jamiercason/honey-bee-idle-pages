@@ -259,6 +259,8 @@ export function buildProceduralMaterialMaps() {
       }
     }, 1.0, 1.0),
     honeyGloss: makeTexture(256, function(ctx, w, h) {
+      ctx.fillStyle = '#ffe0a0';
+      ctx.fillRect(0, 0, w, h);
       var g = ctx.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0.0, 'rgba(255,255,255,0.0)');
       g.addColorStop(0.28, 'rgba(255,240,180,0.18)');

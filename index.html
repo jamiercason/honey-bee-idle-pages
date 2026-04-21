@@ -467,6 +467,17 @@
   <div class="dbg-row"><span class="dbg-lbl">V-spacing</span>     <button class="dbg-btn-step" id="dbg-vspace-dn">-</button><span class="dbg-val" id="dbg-vspace-val">--</span><button class="dbg-btn-step" id="dbg-vspace-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Hex radius</span>    <button class="dbg-btn-step" id="dbg-hexr-dn">-</button><span class="dbg-val" id="dbg-hexr-val">--</span><button class="dbg-btn-step" id="dbg-hexr-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Hex depth</span>     <button class="dbg-btn-step" id="dbg-hexd-dn">-</button><span class="dbg-val" id="dbg-hexd-val">--</span><button class="dbg-btn-step" id="dbg-hexd-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Core inset</span>    <button class="dbg-btn-step" id="dbg-coreinset-dn">-</button><span class="dbg-val" id="dbg-coreinset-val">--</span><button class="dbg-btn-step" id="dbg-coreinset-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Face scale</span>    <button class="dbg-btn-step" id="dbg-facescale-dn">-</button><span class="dbg-val" id="dbg-facescale-val">--</span><button class="dbg-btn-step" id="dbg-facescale-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bevel inset</span>   <button class="dbg-btn-step" id="dbg-bevelin-dn">-</button><span class="dbg-val" id="dbg-bevelin-val">--</span><button class="dbg-btn-step" id="dbg-bevelin-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Face recess</span>   <button class="dbg-btn-step" id="dbg-facerecess-dn">-</button><span class="dbg-val" id="dbg-facerecess-val">--</span><button class="dbg-btn-step" id="dbg-facerecess-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Face segs</span>     <button class="dbg-btn-step" id="dbg-faceseg-dn">-</button><span class="dbg-val" id="dbg-faceseg-val">--</span><button class="dbg-btn-step" id="dbg-faceseg-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Label scale</span>   <button class="dbg-btn-step" id="dbg-lblscale-dn">-</button><span class="dbg-val" id="dbg-lblscale-val">--</span><button class="dbg-btn-step" id="dbg-lblscale-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Label lift</span>    <button class="dbg-btn-step" id="dbg-lbloffset-dn">-</button><span class="dbg-val" id="dbg-lbloffset-val">--</span><button class="dbg-btn-step" id="dbg-lbloffset-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Label y</span>       <button class="dbg-btn-step" id="dbg-lblybias-dn">-</button><span class="dbg-val" id="dbg-lblybias-val">--</span><button class="dbg-btn-step" id="dbg-lblybias-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">State contrast</span><button class="dbg-btn-step" id="dbg-statecontrast-dn">-</button><span class="dbg-val" id="dbg-statecontrast-val">--</span><button class="dbg-btn-step" id="dbg-statecontrast-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Fill visual</span>   <button class="dbg-btn-step" id="dbg-fillvis-dn">-</button><span class="dbg-val" id="dbg-fillvis-val">--</span><button class="dbg-btn-step" id="dbg-fillvis-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Full gloss</span>    <button class="dbg-btn-step" id="dbg-fullgloss-dn">-</button><span class="dbg-val" id="dbg-fullgloss-val">--</span><button class="dbg-btn-step" id="dbg-fullgloss-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Gap factor</span>    <button class="dbg-btn-step" id="dbg-gap-dn">-</button><span class="dbg-val" id="dbg-gap-val">--</span><button class="dbg-btn-step" id="dbg-gap-up">+</button></div>
   <div class="dbg-section">Simulation</div>
   <div class="dbg-row"><span class="dbg-lbl">Time scale</span>    <button class="dbg-btn-step" id="dbg-ts-dn">-</button><span class="dbg-val" id="dbg-ts-val">--</span><button class="dbg-btn-step" id="dbg-ts-up">+</button></div>
@@ -1001,6 +1012,8 @@ var buildFlatHexFaceGeometry = hiveMeshesModule.buildFlatHexFaceGeometry;
 var buildInitialCellMeshes = hiveMeshesModule.buildInitialCellMeshes;
 var createCoreCyl = hiveMeshesModule.createCoreCyl;
 var createCoreOccluder = hiveMeshesModule.createCoreOccluder;
+var getCoreCylinderRadius = hiveMeshesModule.getCoreCylinderRadius;
+var getCoreOccluderRadius = hiveMeshesModule.getCoreOccluderRadius;
 var refreshCoreCylinderMaterial = hiveMeshesModule.refreshCoreCylinderMaterial;
 var buildCellFxTextures = texturesModule.buildCellFxTextures;
 var buildProceduralMaterialMaps = texturesModule.buildProceduralMaterialMaps;
@@ -1270,7 +1283,13 @@ function rebuildHiveFromDebug() {
     ensureCellFx(rcell, rmesh);
   }
   coreCyl.geometry.dispose();
-  coreCyl.geometry = new THREE.CylinderGeometry(HIVE.CYLINDER_RADIUS - 0.72, HIVE.CYLINDER_RADIUS - 0.72, HIVE.ROWS * HIVE.VERTICAL_SPACING * 2.4, 48, 1, false);
+  var rebuiltCoreRadius = getCoreCylinderRadius();
+  coreCyl.geometry = new THREE.CylinderGeometry(rebuiltCoreRadius, rebuiltCoreRadius, HIVE.ROWS * HIVE.VERTICAL_SPACING * 2.4, 48, 1, false);
+  if (coreOccluder && coreOccluder.geometry) {
+    coreOccluder.geometry.dispose();
+    var rebuiltOccluderRadius = getCoreOccluderRadius();
+    coreOccluder.geometry = new THREE.CylinderGeometry(rebuiltOccluderRadius, rebuiltOccluderRadius, HIVE.ROWS * HIVE.VERTICAL_SPACING * 2.45, 24, 1, false);
+  }
   refreshCoreCylinderMaterial();
   initSceneArt();
   runConservativeAssertions(game);
@@ -1282,7 +1301,18 @@ function copyDebugValues() {
     'HIVE.VERTICAL_SPACING  = ' + HIVE.VERTICAL_SPACING.toFixed(3) + ';',
     'HIVE.HEX_CIRCUMRADIUS  = ' + HIVE.HEX_CIRCUMRADIUS.toFixed(3) + ';',
     'HIVE.HEX_DEPTH         = ' + HIVE.HEX_DEPTH.toFixed(3) + ';',
+    'HIVE.CORE_SURFACE_INSET = ' + HIVE.CORE_SURFACE_INSET.toFixed(3) + ';',
+    'HIVE.HEX_FACE_SCALE    = ' + HIVE.HEX_FACE_SCALE.toFixed(3) + ';',
+    'HIVE.HEX_BEVEL_INSET   = ' + HIVE.HEX_BEVEL_INSET.toFixed(3) + ';',
+    'HIVE.HEX_FACE_RECESS   = ' + HIVE.HEX_FACE_RECESS.toFixed(3) + ';',
+    'HIVE.HEX_FACE_SEGMENTS = ' + Math.round(HIVE.HEX_FACE_SEGMENTS) + ';',
     'HIVE.HEX_GAP_FACTOR    = ' + HIVE.HEX_GAP_FACTOR.toFixed(4) + ';',
+    'LABEL.CELL_SURFACE_SCALE  = ' + LABEL.CELL_SURFACE_SCALE.toFixed(3) + ';',
+    'LABEL.CELL_SURFACE_OFFSET = ' + LABEL.CELL_SURFACE_OFFSET.toFixed(3) + ';',
+    'LABEL.CELL_SURFACE_Y_BIAS = ' + LABEL.CELL_SURFACE_Y_BIAS.toFixed(3) + ';',
+    'HIVE.CELL_STATE_CONTRAST    = ' + HIVE.CELL_STATE_CONTRAST.toFixed(3) + ';',
+    'HIVE.CELL_PRODUCING_FILL_VIS = ' + HIVE.CELL_PRODUCING_FILL_VIS.toFixed(3) + ';',
+    'HIVE.CELL_FULL_GLOSS        = ' + HIVE.CELL_FULL_GLOSS.toFixed(3) + ';',
     'CAM.RADIUS             = ' + camState.radius.toFixed(2) + ';',
     'CAM.POLAR_ANGLE        = ' + camState.phi.toFixed(3) + ';',
     'CAM.TARGET_Y           = ' + CAM.TARGET_Y.toFixed(2) + ';',
