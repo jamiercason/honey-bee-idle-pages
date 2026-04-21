@@ -12,6 +12,7 @@ var projectOnPlaneRef = function(vec) { return vec; };
 var getFallbackSeatForwardRef = function() { return null; };
 var getCellSurfaceNormalRef = function() { return null; };
 var getCellWorldPosRef = function() { return null; };
+var GATHER_RETURN_SPACING_DELAY_T = 0.18;
 
 export function setBeeMovementRuntime(runtime) {
   stateRef = runtime && runtime.state ? runtime.state : null;
@@ -167,6 +168,12 @@ export function getGatherArcPos(bee, fromPos, toPos, t) {
     alt *= 0.30;
     curve = bee.arcAlt * 0.25;
     tt = 1.0 - Math.pow(1.0 - t, 2.2);
+    var deliveryArc = arcPosEx(fromPos, toPos, tt, bump, alt, curve);
+    var deliveryLine = fromPos.clone().lerp(toPos, tt);
+    var arrivalBlend = smoothstep(0.58, 1.0, t);
+    var departureBlend = 1.0 - smoothstep(0.0, 0.12, t);
+    var deliveryResult = deliveryArc.lerp(deliveryLine, arrivalBlend);
+    return deliveryResult.lerp(fromPos, departureBlend);
   } else if (bee && bee.gatherPhase === 'backing_out') {
     tt = smoothstep(0.0, 1.0, t);
     return fromPos.clone().lerp(toPos, tt);
@@ -180,9 +187,10 @@ export function getGatherArcPos(bee, fromPos, toPos, t) {
     tt = smoothstep(0.0, 1.0, t);
     var returnArc = arcPosEx(fromPos, toPos, tt, bump, alt, curve);
     var returnLine = fromPos.clone().lerp(toPos, tt);
-    var returnBlend = smoothstep(0.22, 0.62, t);
-    var result = returnLine.lerp(returnArc, returnBlend);
-    result.y = lerp(fromPos.y, returnArc.y, smoothstep(0.42, 0.96, t));
+    var launchLine = fromPos.clone().lerp(returnLine, smoothstep(0.0, GATHER_RETURN_SPACING_DELAY_T, t));
+    var returnBlend = smoothstep(GATHER_RETURN_SPACING_DELAY_T, 0.58, t);
+    var result = launchLine.lerp(returnArc, returnBlend);
+    result.y = lerp(launchLine.y, returnArc.y, smoothstep(0.26, 0.94, t));
     return result;
   }
 
@@ -286,7 +294,10 @@ export function shouldApplyBeePersonalSpace(bee) {
   if (!bee) { return false; }
   if (bee.mergeFreezeTimer > 0) { return false; }
   if (bee.role === BEE_ROLE.GATHERER &&
-      (bee.gatherPhase === 'delivering' || bee.gatherPhase === 'backing_out' || bee.gatherPhase === 'turning_out')) {
+      (bee.gatherPhase === 'delivering' ||
+       bee.gatherPhase === 'backing_out' ||
+       bee.gatherPhase === 'turning_out' ||
+       (bee.gatherPhase === 'returning' && bee.travelT < GATHER_RETURN_SPACING_DELAY_T))) {
     return false;
   }
   return true;

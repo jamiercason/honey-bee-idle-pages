@@ -126,10 +126,6 @@ export function initDebugSections() {
   var children = Array.prototype.slice.call(debugPanel.children);
   var currentHeader = null;
   var currentBody = null;
-  var defaultCollapsed = {
-    'M6 Tuning': true,
-    'Hive (press Rebuild)': true
-  };
 
   for (var i = 0; i < children.length; i++) {
     var child = children[i];
@@ -139,7 +135,8 @@ export function initDebugSections() {
       currentBody.className = 'dbg-section-body';
       currentHeader.parentNode.insertBefore(currentBody, currentHeader.nextSibling);
       var title = currentHeader.textContent.trim();
-      setDebugSectionCollapsed(currentHeader, currentBody, !!defaultCollapsed[title]);
+      var collapsedByDefault = title.toLowerCase() !== 'tools';
+      setDebugSectionCollapsed(currentHeader, currentBody, collapsedByDefault);
       (function(header, body) {
         header.addEventListener('click', function(e) {
           e.stopPropagation();
