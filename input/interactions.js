@@ -8,6 +8,7 @@ import { evaluateGateConditions } from '../economy/gates.js';
 import { getSelectedBee } from '../bees/beeQueries.js';
 import { assignBeeToCell, releaseWorkTarget } from '../bees/beeAssignments.js';
 import { mergeBees } from '../bees/beeMerging.js';
+import { getCellWorldPos } from '../bees/beePose.js';
 import { refreshCellMaterial } from '../scene/materials.js';
 import { updateBoostGhost } from '../ui/summonBar.js';
 import { HIVE } from '../config/hiveConfig.js';
@@ -26,6 +27,7 @@ var rejectShakeRef = function() {};
 var flashCellRef = function() {};
 var markCameraInteractionRef = function() {};
 var applyRoyalJellyToBeeRef = function() { return false; };
+var triggerHoneyCollectFxRef = function() {};
 
 var dragPreviewCandidate = new THREE.Vector3();
 var dragPreviewFallback = new THREE.Vector3();
@@ -199,6 +201,7 @@ export function setInteractionsRuntime(runtime) {
   flashCellRef = runtime && runtime.flashCell ? runtime.flashCell : flashCellRef;
   markCameraInteractionRef = runtime && runtime.markCameraInteraction ? runtime.markCameraInteraction : markCameraInteractionRef;
   applyRoyalJellyToBeeRef = runtime && runtime.applyRoyalJellyToBee ? runtime.applyRoyalJellyToBee : applyRoyalJellyToBeeRef;
+  triggerHoneyCollectFxRef = runtime && runtime.triggerHoneyCollectFx ? runtime.triggerHoneyCollectFx : triggerHoneyCollectFxRef;
 }
 
 function applyResolvedDragHover(resolved) {
@@ -416,6 +419,7 @@ export function onTap(screenX, screenY) {
       if (result) { setBuildingToastRef(result, 2.5); }
     } else if (hitCell.state === CELL_STATE.ACTIVE && hitCell.cellType === CELL_TYPE.OPEN && hitCell.isReadyToCollect) {
       var collectedHoney = hitCell.honeyStored;
+      var collectPos = getCellWorldPos(hitCell).clone();
       stateRef.honey += hitCell.honeyStored;
       hitCell.honeyStored = 0;
       hitCell.isReadyToCollect = false;
@@ -424,7 +428,9 @@ export function onTap(screenX, screenY) {
       flashCellRef(hitCell.id, 0xffee44);
       markCameraInteractionRef(hitCell);
       registerRoyalRush();
-      setBuildingToastRef('+' + Math.floor(collectedHoney) + ' honey  •  rush x' + getRoyalRushStacks(), 1.8);
+      var comboStacks = getRoyalRushStacks();
+      triggerHoneyCollectFxRef(collectPos, collectedHoney, comboStacks);
+      setBuildingToastRef('+' + Math.floor(collectedHoney) + ' honey  •  rush x' + comboStacks, 1.8);
     }
     return;
   }

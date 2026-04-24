@@ -15,7 +15,7 @@ export function createLightingRig(scene) {
   scene.add(skyFillLight);
 
   var sunLight = new THREE.DirectionalLight(LIGHTING.KEY_COLOR, LIGHTING.KEY_INTENSITY);
-  sunLight.position.set(-10, 18, 10);
+  sunLight.position.set(LIGHTING.KEY_POS_X, LIGHTING.KEY_POS_Y, LIGHTING.KEY_POS_Z);
   sunLight.castShadow = true;
   sunLight.shadow.mapSize.set(1024, 1024);
   sunLight.shadow.camera.near = 1;
@@ -32,10 +32,10 @@ export function createLightingRig(scene) {
   scene.add(groundBounceLight);
 
   var rimLight = new THREE.DirectionalLight(LIGHTING.RIM_COLOR, LIGHTING.RIM_INTENSITY);
-  rimLight.position.set(12, 10, -12);
+  rimLight.position.set(LIGHTING.RIM_POS_X, LIGHTING.RIM_POS_Y, LIGHTING.RIM_POS_Z);
   scene.add(rimLight);
 
-  var hiveGlow = new THREE.PointLight(LIGHTING.HIVE_GLOW_COLOR, 0.0, 22);
+  var hiveGlow = new THREE.PointLight(LIGHTING.HIVE_GLOW_COLOR, LIGHTING.HIVE_GLOW_INTENSITY, 22);
   hiveGlow.position.set(HIVE.CYLINDER_RADIUS + 3, -1, 0);
   scene.add(hiveGlow);
 
@@ -67,9 +67,12 @@ export function refreshLightingRig() {
   skyFillLightRef.intensity = LIGHTING.SKY_INTENSITY;
   sunLightRef.color.setHex(LIGHTING.KEY_COLOR);
   sunLightRef.intensity = LIGHTING.KEY_INTENSITY;
+  sunLightRef.position.set(LIGHTING.KEY_POS_X, LIGHTING.KEY_POS_Y, LIGHTING.KEY_POS_Z);
   groundBounceLightRef.color.setHex(LIGHTING.BOUNCE_COLOR);
   groundBounceLightRef.intensity = LIGHTING.BOUNCE_INTENSITY;
   rimLightRef.color.setHex(LIGHTING.RIM_COLOR);
   rimLightRef.intensity = LIGHTING.RIM_INTENSITY;
+  rimLightRef.position.set(LIGHTING.RIM_POS_X, LIGHTING.RIM_POS_Y, LIGHTING.RIM_POS_Z);
   hiveGlowRef.color.setHex(LIGHTING.HIVE_GLOW_COLOR);
+  hiveGlowRef.intensity = LIGHTING.HIVE_GLOW_INTENSITY;
 }

@@ -463,6 +463,59 @@ export function buildHorizonTexture() {
   return new THREE.CanvasTexture(c);
 }
 
+export function buildMidgroundMeadowTexture() {
+  var THREE = globalThis.THREE;
+  var c = makeLayerCanvas(1024, 384);
+  var ctx = c.getContext('2d');
+  ctx.clearRect(0, 0, c.width, c.height);
+  var grad = ctx.createLinearGradient(0, 0, 0, c.height);
+  grad.addColorStop(0.0, 'rgba(205,224,152,0.00)');
+  grad.addColorStop(0.22, 'rgba(177,207,108,0.18)');
+  grad.addColorStop(0.56, 'rgba(118,178,75,0.58)');
+  grad.addColorStop(1.0, 'rgba(60,124,36,0.88)');
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, c.width, c.height);
+
+  for (var i = 0; i < 180; i++) {
+    var edge = Math.random() < 0.64;
+    var band = edge
+      ? (Math.random() < 0.5 ? 0.03 + Math.random() * 0.24 : 0.73 + Math.random() * 0.24)
+      : (0.28 + Math.random() * 0.44);
+    var x = band * c.width;
+    var y = c.height * (0.24 + Math.random() * 0.68);
+    var h = 18 + Math.random() * 58;
+    ctx.strokeStyle = 'rgba(226,244,156,' + (0.08 + Math.random() * 0.14) + ')';
+    ctx.lineWidth = 1 + Math.random() * 1.8;
+    ctx.beginPath();
+    ctx.moveTo(x, y + h * 0.5);
+    ctx.quadraticCurveTo(x + (Math.random() - 0.5) * 18, y, x + (Math.random() - 0.5) * 26, y - h);
+    ctx.stroke();
+  }
+
+  var blooms = ['rgba(255,248,192,0.50)', 'rgba(255,183,132,0.38)', 'rgba(255,202,218,0.36)', 'rgba(204,225,255,0.30)'];
+  for (var j = 0; j < 88; j++) {
+    var sideBand = Math.random() < 0.72
+      ? (Math.random() < 0.5 ? 0.05 + Math.random() * 0.23 : 0.72 + Math.random() * 0.23)
+      : (0.34 + Math.random() * 0.32);
+    var fx = sideBand * c.width;
+    var fy = c.height * (0.34 + Math.random() * 0.48);
+    var fr = 5 + Math.random() * 13;
+    ctx.fillStyle = blooms[j % blooms.length];
+    ctx.beginPath();
+    ctx.arc(fx, fy, fr, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  var centerClear = ctx.createRadialGradient(c.width * 0.5, c.height * 0.52, c.width * 0.06, c.width * 0.5, c.height * 0.52, c.width * 0.30);
+  centerClear.addColorStop(0.0, 'rgba(255,255,255,0.13)');
+  centerClear.addColorStop(0.58, 'rgba(255,255,255,0.05)');
+  centerClear.addColorStop(1.0, 'rgba(255,255,255,0.0)');
+  ctx.fillStyle = centerClear;
+  ctx.fillRect(0, 0, c.width, c.height);
+  featherCanvasEdges(c, 0.10, 0.10, 0.24, 0.08);
+  return new THREE.CanvasTexture(c);
+}
+
 export function buildFlowerTexture() {
   var THREE = globalThis.THREE;
   var c = makeLayerCanvas(1024, 512);

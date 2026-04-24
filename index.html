@@ -45,6 +45,15 @@
       linear-gradient(180deg, rgba(255,255,255,0.04) 0%, rgba(0,0,0,0.00) 28%, rgba(65,26,0,0.08) 100%);
     opacity: 1; transition: opacity 0.3s ease;
   }
+  #reward-bloom {
+    position: fixed; inset: 0; pointer-events: none;
+    opacity: 0;
+    transform: scale(1);
+    will-change: opacity, transform, background;
+    mix-blend-mode: screen;
+    filter: blur(18px);
+    z-index: 90;
+  }
   #boot-overlay {
     position: fixed; inset: 0; z-index: 500;
     display: flex; align-items: center; justify-content: center;
@@ -377,6 +386,7 @@
   </div>
 </div>
 <div id="vignette"></div>
+<div id="reward-bloom"></div>
 <div id="hud"></div>
 
 <div id="summon-bar">
@@ -429,6 +439,7 @@
   <div class="dbg-section">Scene Art</div>
   <div class="dbg-row"><span class="dbg-lbl">Scene art</span>     <button class="dbg-btn-step" id="dbg-sceneart-dn">-</button><span class="dbg-val" id="dbg-sceneart-val">--</span><button class="dbg-btn-step" id="dbg-sceneart-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Clouds</span>        <button class="dbg-btn-step" id="dbg-clouds-dn">-</button><span class="dbg-val" id="dbg-clouds-val">--</span><button class="dbg-btn-step" id="dbg-clouds-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Midground</span>     <button class="dbg-btn-step" id="dbg-midground-dn">-</button><span class="dbg-val" id="dbg-midground-val">--</span><button class="dbg-btn-step" id="dbg-midground-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Ambient bees</span>  <button class="dbg-btn-step" id="dbg-ambientbees-dn">-</button><span class="dbg-val" id="dbg-ambientbees-val">--</span><button class="dbg-btn-step" id="dbg-ambientbees-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Flowers</span>       <button class="dbg-btn-step" id="dbg-flowers-dn">-</button><span class="dbg-val" id="dbg-flowers-val">--</span><button class="dbg-btn-step" id="dbg-flowers-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Foreground</span>    <button class="dbg-btn-step" id="dbg-foreground-dn">-</button><span class="dbg-val" id="dbg-foreground-val">--</span><button class="dbg-btn-step" id="dbg-foreground-up">+</button></div>
@@ -436,10 +447,24 @@
   <div class="dbg-row"><span class="dbg-lbl">Flower count</span>  <button class="dbg-btn-step" id="dbg-flowercount-dn">-</button><span class="dbg-val" id="dbg-flowercount-val">--</span><button class="dbg-btn-step" id="dbg-flowercount-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Ambient count</span> <button class="dbg-btn-step" id="dbg-ambientcount-dn">-</button><span class="dbg-val" id="dbg-ambientcount-val">--</span><button class="dbg-btn-step" id="dbg-ambientcount-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Pollen count</span>  <button class="dbg-btn-step" id="dbg-pollencount-dn">-</button><span class="dbg-val" id="dbg-pollencount-val">--</span><button class="dbg-btn-step" id="dbg-pollencount-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cloud alpha</span>   <button class="dbg-btn-step" id="dbg-cloudop-dn">-</button><span class="dbg-val" id="dbg-cloudop-val">--</span><button class="dbg-btn-step" id="dbg-cloudop-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Mid alpha</span>     <button class="dbg-btn-step" id="dbg-midop-dn">-</button><span class="dbg-val" id="dbg-midop-val">--</span><button class="dbg-btn-step" id="dbg-midop-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Flower alpha</span>  <button class="dbg-btn-step" id="dbg-flowerop-dn">-</button><span class="dbg-val" id="dbg-flowerop-val">--</span><button class="dbg-btn-step" id="dbg-flowerop-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Fore alpha</span>    <button class="dbg-btn-step" id="dbg-foreop-dn">-</button><span class="dbg-val" id="dbg-foreop-val">--</span><button class="dbg-btn-step" id="dbg-foreop-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Wind sway</span>     <button class="dbg-btn-step" id="dbg-wind-dn">-</button><span class="dbg-val" id="dbg-wind-val">--</span><button class="dbg-btn-step" id="dbg-wind-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Cloud drift</span>   <button class="dbg-btn-step" id="dbg-clouddrift-dn">-</button><span class="dbg-val" id="dbg-clouddrift-val">--</span><button class="dbg-btn-step" id="dbg-clouddrift-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee swarm</span>     <button class="dbg-btn-step" id="dbg-swarm-dn">-</button><span class="dbg-val" id="dbg-swarm-val">--</span><button class="dbg-btn-step" id="dbg-swarm-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Fore sway</span>     <button class="dbg-btn-step" id="dbg-foresway-dn">-</button><span class="dbg-val" id="dbg-foresway-val">--</span><button class="dbg-btn-step" id="dbg-foresway-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Key light</span>     <button class="dbg-btn-step" id="dbg-keylight-dn">-</button><span class="dbg-val" id="dbg-keylight-val">--</span><button class="dbg-btn-step" id="dbg-keylight-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Sky fill</span>      <button class="dbg-btn-step" id="dbg-skyfill-dn">-</button><span class="dbg-val" id="dbg-skyfill-val">--</span><button class="dbg-btn-step" id="dbg-skyfill-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Bounce</span>        <button class="dbg-btn-step" id="dbg-bounce-dn">-</button><span class="dbg-val" id="dbg-bounce-val">--</span><button class="dbg-btn-step" id="dbg-bounce-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Rim light</span>     <button class="dbg-btn-step" id="dbg-rimlight-dn">-</button><span class="dbg-val" id="dbg-rimlight-val">--</span><button class="dbg-btn-step" id="dbg-rimlight-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Sun X</span>         <button class="dbg-btn-step" id="dbg-sunx-dn">-</button><span class="dbg-val" id="dbg-sunx-val">--</span><button class="dbg-btn-step" id="dbg-sunx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Sun Y</span>         <button class="dbg-btn-step" id="dbg-suny-dn">-</button><span class="dbg-val" id="dbg-suny-val">--</span><button class="dbg-btn-step" id="dbg-suny-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Sun Z</span>         <button class="dbg-btn-step" id="dbg-sunz-dn">-</button><span class="dbg-val" id="dbg-sunz-val">--</span><button class="dbg-btn-step" id="dbg-sunz-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Rim X</span>         <button class="dbg-btn-step" id="dbg-rimx-dn">-</button><span class="dbg-val" id="dbg-rimx-val">--</span><button class="dbg-btn-step" id="dbg-rimx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Rim Y</span>         <button class="dbg-btn-step" id="dbg-rimy-dn">-</button><span class="dbg-val" id="dbg-rimy-val">--</span><button class="dbg-btn-step" id="dbg-rimy-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Rim Z</span>         <button class="dbg-btn-step" id="dbg-rimz-dn">-</button><span class="dbg-val" id="dbg-rimz-val">--</span><button class="dbg-btn-step" id="dbg-rimz-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Hive glow</span>     <button class="dbg-btn-step" id="dbg-hiveglow-dn">-</button><span class="dbg-val" id="dbg-hiveglow-val">--</span><button class="dbg-btn-step" id="dbg-hiveglow-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Cell hi</span>       <button class="dbg-btn-step" id="dbg-cellhi-dn">-</button><span class="dbg-val" id="dbg-cellhi-val">--</span><button class="dbg-btn-step" id="dbg-cellhi-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Cell FX</span>       <button class="dbg-btn-step" id="dbg-cellfx-dn">-</button><span class="dbg-val" id="dbg-cellfx-val">--</span><button class="dbg-btn-step" id="dbg-cellfx-up">+</button></div>
@@ -447,6 +472,25 @@
   <div class="dbg-row"><span class="dbg-lbl">Material rich</span> <button class="dbg-btn-step" id="dbg-matrich-dn">-</button><span class="dbg-val" id="dbg-matrich-val">--</span><button class="dbg-btn-step" id="dbg-matrich-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Bee trails</span>    <button class="dbg-btn-step" id="dbg-beetrails-dn">-</button><span class="dbg-val" id="dbg-beetrails-val">--</span><button class="dbg-btn-step" id="dbg-beetrails-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Event FX</span>      <button class="dbg-btn-step" id="dbg-eventfx-dn">-</button><span class="dbg-val" id="dbg-eventfx-val">--</span><button class="dbg-btn-step" id="dbg-eventfx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Ready pulse</span>   <button class="dbg-btn-step" id="dbg-readyfx-dn">-</button><span class="dbg-val" id="dbg-readyfx-val">--</span><button class="dbg-btn-step" id="dbg-readyfx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Drip count</span>    <button class="dbg-btn-step" id="dbg-dripcount-dn">-</button><span class="dbg-val" id="dbg-dripcount-val">--</span><button class="dbg-btn-step" id="dbg-dripcount-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Overflow FX</span>   <button class="dbg-btn-step" id="dbg-overflowfx-dn">-</button><span class="dbg-val" id="dbg-overflowfx-val">--</span><button class="dbg-btn-step" id="dbg-overflowfx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Overflow ct</span>   <button class="dbg-btn-step" id="dbg-overflowct-dn">-</button><span class="dbg-val" id="dbg-overflowct-val">--</span><button class="dbg-btn-step" id="dbg-overflowct-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Combo FX</span>      <button class="dbg-btn-step" id="dbg-combofx-dn">-</button><span class="dbg-val" id="dbg-combofx-val">--</span><button class="dbg-btn-step" id="dbg-combofx-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Screen bloom</span>  <button class="dbg-btn-step" id="dbg-screenbloom-dn">-</button><span class="dbg-val" id="dbg-screenbloom-val">--</span><button class="dbg-btn-step" id="dbg-screenbloom-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bloom dur</span>     <button class="dbg-btn-step" id="dbg-bloomdur-dn">-</button><span class="dbg-val" id="dbg-bloomdur-val">--</span><button class="dbg-btn-step" id="dbg-bloomdur-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Screen shake</span>  <button class="dbg-btn-step" id="dbg-screenshake-dn">-</button><span class="dbg-val" id="dbg-screenshake-val">--</span><button class="dbg-btn-step" id="dbg-screenshake-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Shake dur</span>     <button class="dbg-btn-step" id="dbg-shakedur-dn">-</button><span class="dbg-val" id="dbg-shakedur-val">--</span><button class="dbg-btn-step" id="dbg-shakedur-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Merge fuse</span>    <button class="dbg-btn-step" id="dbg-mergefuse-dn">-</button><span class="dbg-val" id="dbg-mergefuse-val">--</span><button class="dbg-btn-step" id="dbg-mergefuse-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Unlock light</span>  <button class="dbg-btn-step" id="dbg-unlocklight-dn">-</button><span class="dbg-val" id="dbg-unlocklight-val">--</span><button class="dbg-btn-step" id="dbg-unlocklight-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Unlock dur</span>    <button class="dbg-btn-step" id="dbg-unlockdur-dn">-</button><span class="dbg-val" id="dbg-unlockdur-val">--</span><button class="dbg-btn-step" id="dbg-unlockdur-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee arc</span>       <button class="dbg-btn-step" id="dbg-beearc-dn">-</button><span class="dbg-val" id="dbg-beearc-val">--</span><button class="dbg-btn-step" id="dbg-beearc-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee sway</span>      <button class="dbg-btn-step" id="dbg-beesway-dn">-</button><span class="dbg-val" id="dbg-beesway-val">--</span><button class="dbg-btn-step" id="dbg-beesway-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee facing</span>    <button class="dbg-btn-step" id="dbg-beeface-dn">-</button><span class="dbg-val" id="dbg-beeface-val">--</span><button class="dbg-btn-step" id="dbg-beeface-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee hover</span>     <button class="dbg-btn-step" id="dbg-beehover-dn">-</button><span class="dbg-val" id="dbg-beehover-val">--</span><button class="dbg-btn-step" id="dbg-beehover-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Bee attach</span>    <button class="dbg-btn-step" id="dbg-beeattach-dn">-</button><span class="dbg-val" id="dbg-beeattach-val">--</span><button class="dbg-btn-step" id="dbg-beeattach-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Trail count</span>   <button class="dbg-btn-step" id="dbg-trailden-dn">-</button><span class="dbg-val" id="dbg-trailden-val">--</span><button class="dbg-btn-step" id="dbg-trailden-up">+</button></div>
+  <div class="dbg-row"><span class="dbg-lbl">Trail alpha</span>   <button class="dbg-btn-step" id="dbg-trailop-dn">-</button><span class="dbg-val" id="dbg-trailop-val">--</span><button class="dbg-btn-step" id="dbg-trailop-up">+</button></div>
   <div class="dbg-section">Bee Pose</div>
   <div class="dbg-row"><span class="dbg-lbl">Pose system</span>   <button class="dbg-btn-step" id="dbg-beepose-dn">-</button><span class="dbg-val" id="dbg-beepose-val">--</span><button class="dbg-btn-step" id="dbg-beepose-up">+</button></div>
   <div class="dbg-row"><span class="dbg-lbl">Pose guides</span>   <button class="dbg-btn-step" id="dbg-poseguides-dn">-</button><span class="dbg-val" id="dbg-poseguides-val">--</span><button class="dbg-btn-step" id="dbg-poseguides-up">+</button></div>
@@ -734,6 +778,7 @@ var interactionsModule = await import(moduleRoot + 'input/interactions.js');
 var pointerControllerModule = await import(moduleRoot + 'input/pointerController.js');
 var gestureControllerModule = await import(moduleRoot + 'input/gestureController.js');
 var hudModule = await import(moduleRoot + 'ui/hud.js');
+var screenFxModule = await import(moduleRoot + 'ui/screenFx.js');
 var summonBarModule = await import(moduleRoot + 'ui/summonBar.js');
 var toastsModule = await import(moduleRoot + 'ui/toasts.js');
 var debugPanelModule = await import(moduleRoot + 'ui/debugPanel.js');
@@ -983,6 +1028,10 @@ var setGestureControllerRuntime = gestureControllerModule.setGestureControllerRu
 var installGestureController = gestureControllerModule.installGestureController;
 var setHudRuntime = hudModule.setHudRuntime;
 var updateUI = hudModule.updateUI;
+var setScreenFxRuntime = screenFxModule.setScreenFxRuntime;
+var triggerRewardBloom = screenFxModule.triggerRewardBloom;
+var triggerScreenShake = screenFxModule.triggerScreenShake;
+var updateScreenFx = screenFxModule.updateScreenFx;
 var setSummonBarRuntime = summonBarModule.setSummonBarRuntime;
 var initSummonBar = summonBarModule.initSummonBar;
 var setBuildingToast = toastsModule.setBuildingToast;
@@ -1050,6 +1099,7 @@ var ensureCellFx = cellFxModule.ensureCellFx;
 var ensureCellFxTransient = cellFxModule.ensureCellFxTransient;
 var triggerCellUnlockFx = cellFxModule.triggerCellUnlockFx;
 var triggerHoneyReadyFx = cellFxModule.triggerHoneyReadyFx;
+var triggerHoneyCollectFx = cellFxModule.triggerHoneyCollectFx;
 var triggerMergeFx = cellFxModule.triggerMergeFx;
 var updateCellFx = cellFxModule.updateCellFx;
 var updateCellVfx = cellFxModule.updateCellVfx;
@@ -1331,6 +1381,7 @@ function copyDebugValues() {
     'CAM_CONTEXT.GATE_Y_OFFSET = ' + CAM_CONTEXT.GATE_Y_OFFSET.toFixed(2) + ';',
     'SCENE_ART.ENABLED = ' + (SCENE_ART.ENABLED ? 'true' : 'false') + ';',
     'SCENE_ART.CLOUD_VISIBLE = ' + (SCENE_ART.CLOUD_VISIBLE ? 'true' : 'false') + ';',
+    'SCENE_ART.MIDGROUND_VISIBLE = ' + (SCENE_ART.MIDGROUND_VISIBLE ? 'true' : 'false') + ';',
     'SCENE_ART.AMBIENT_BEES_VISIBLE = ' + (SCENE_ART.AMBIENT_BEES_VISIBLE ? 'true' : 'false') + ';',
     'SCENE_ART.FLOWERS_VISIBLE = ' + (SCENE_ART.FLOWERS_VISIBLE ? 'true' : 'false') + ';',
     'SCENE_ART.FOREGROUND_VISIBLE = ' + (SCENE_ART.FOREGROUND_VISIBLE ? 'true' : 'false') + ';',
@@ -1338,16 +1389,50 @@ function copyDebugValues() {
     'SCENE_ART.FLOWER_CLUSTER_COUNT = ' + SCENE_ART.FLOWER_CLUSTER_COUNT + ';',
     'SCENE_ART.AMBIENT_BEE_COUNT = ' + SCENE_ART.AMBIENT_BEE_COUNT + ';',
     'SCENE_ART.POLLEN_COUNT = ' + SCENE_ART.POLLEN_COUNT + ';',
+    'SCENE_ART.CLOUD_OPACITY = ' + SCENE_ART.CLOUD_OPACITY.toFixed(3) + ';',
+    'SCENE_ART.MIDGROUND_OPACITY = ' + SCENE_ART.MIDGROUND_OPACITY.toFixed(3) + ';',
+    'SCENE_ART.FLOWER_OPACITY = ' + SCENE_ART.FLOWER_OPACITY.toFixed(3) + ';',
+    'SCENE_ART.FOREGROUND_OPACITY = ' + SCENE_ART.FOREGROUND_OPACITY.toFixed(3) + ';',
+    'SCENE_ART.WIND_SWAY_INTENSITY = ' + SCENE_ART.WIND_SWAY_INTENSITY.toFixed(3) + ';',
+    'SCENE_ART.CLOUD_DRIFT_STRENGTH = ' + SCENE_ART.CLOUD_DRIFT_STRENGTH.toFixed(3) + ';',
+    'SCENE_ART.AMBIENT_SWARM_INTENSITY = ' + SCENE_ART.AMBIENT_SWARM_INTENSITY.toFixed(3) + ';',
+    'SCENE_ART.FOREGROUND_SWAY_INTENSITY = ' + SCENE_ART.FOREGROUND_SWAY_INTENSITY.toFixed(3) + ';',
     'LIGHTING.KEY_INTENSITY = ' + LIGHTING.KEY_INTENSITY.toFixed(2) + ';',
     'LIGHTING.SKY_INTENSITY = ' + LIGHTING.SKY_INTENSITY.toFixed(2) + ';',
     'LIGHTING.BOUNCE_INTENSITY = ' + LIGHTING.BOUNCE_INTENSITY.toFixed(2) + ';',
     'LIGHTING.RIM_INTENSITY = ' + LIGHTING.RIM_INTENSITY.toFixed(2) + ';',
+    'LIGHTING.KEY_POS_X = ' + LIGHTING.KEY_POS_X.toFixed(2) + ';',
+    'LIGHTING.KEY_POS_Y = ' + LIGHTING.KEY_POS_Y.toFixed(2) + ';',
+    'LIGHTING.KEY_POS_Z = ' + LIGHTING.KEY_POS_Z.toFixed(2) + ';',
+    'LIGHTING.RIM_POS_X = ' + LIGHTING.RIM_POS_X.toFixed(2) + ';',
+    'LIGHTING.RIM_POS_Y = ' + LIGHTING.RIM_POS_Y.toFixed(2) + ';',
+    'LIGHTING.RIM_POS_Z = ' + LIGHTING.RIM_POS_Z.toFixed(2) + ';',
+    'LIGHTING.HIVE_GLOW_INTENSITY = ' + LIGHTING.HIVE_GLOW_INTENSITY.toFixed(2) + ';',
     'PRESENTATION.MATERIAL_RICHNESS_ENABLED = ' + (PRESENTATION.MATERIAL_RICHNESS_ENABLED ? 'true' : 'false') + ';',
     'PRESENTATION.BEE_TRAILS_ENABLED = ' + (PRESENTATION.BEE_TRAILS_ENABLED ? 'true' : 'false') + ';',
     'PRESENTATION.EVENT_FX_ENABLED = ' + (PRESENTATION.EVENT_FX_ENABLED ? 'true' : 'false') + ';',
     'PRESENTATION.CELL_HIGHLIGHTS_ENABLED = ' + (PRESENTATION.CELL_HIGHLIGHTS_ENABLED ? 'true' : 'false') + ';',
     'PRESENTATION.CELL_FX_ENABLED = ' + (PRESENTATION.CELL_FX_ENABLED ? 'true' : 'false') + ';',
     'PRESENTATION.BEE_READABILITY_ENABLED = ' + (PRESENTATION.BEE_READABILITY_ENABLED ? 'true' : 'false') + ';',
+    'PRESENTATION.BEE_ARC_HEIGHT = ' + PRESENTATION.BEE_ARC_HEIGHT.toFixed(3) + ';',
+    'PRESENTATION.BEE_ARC_SIDE_SWAY = ' + PRESENTATION.BEE_ARC_SIDE_SWAY.toFixed(3) + ';',
+    'PRESENTATION.BEE_FACING_BLEND = ' + PRESENTATION.BEE_FACING_BLEND.toFixed(3) + ';',
+    'PRESENTATION.BEE_IDLE_HOVER = ' + PRESENTATION.BEE_IDLE_HOVER.toFixed(3) + ';',
+    'PRESENTATION.BEE_WORK_ATTACH = ' + PRESENTATION.BEE_WORK_ATTACH.toFixed(3) + ';',
+    'PRESENTATION.BEE_TRAIL_DENSITY = ' + PRESENTATION.BEE_TRAIL_DENSITY.toFixed(3) + ';',
+    'PRESENTATION.BEE_TRAIL_OPACITY = ' + PRESENTATION.BEE_TRAIL_OPACITY.toFixed(3) + ';',
+    'PRESENTATION.HONEY_READY_FX_INTENSITY = ' + PRESENTATION.HONEY_READY_FX_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.HONEY_READY_DRIP_COUNT = ' + Math.round(PRESENTATION.HONEY_READY_DRIP_COUNT) + ';',
+    'PRESENTATION.HONEY_OVERFLOW_INTENSITY = ' + PRESENTATION.HONEY_OVERFLOW_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.HONEY_OVERFLOW_COUNT = ' + Math.round(PRESENTATION.HONEY_OVERFLOW_COUNT) + ';',
+    'PRESENTATION.COMBO_FEEDBACK_INTENSITY = ' + PRESENTATION.COMBO_FEEDBACK_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.SCREEN_REWARD_BLOOM = ' + PRESENTATION.SCREEN_REWARD_BLOOM.toFixed(3) + ';',
+    'PRESENTATION.SCREEN_BLOOM_DURATION = ' + PRESENTATION.SCREEN_BLOOM_DURATION.toFixed(3) + ';',
+    'PRESENTATION.SCREEN_SHAKE_INTENSITY = ' + PRESENTATION.SCREEN_SHAKE_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.SCREEN_SHAKE_DURATION = ' + PRESENTATION.SCREEN_SHAKE_DURATION.toFixed(3) + ';',
+    'PRESENTATION.MERGE_FUSE_INTENSITY = ' + PRESENTATION.MERGE_FUSE_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.UNLOCK_LIGHT_INTENSITY = ' + PRESENTATION.UNLOCK_LIGHT_INTENSITY.toFixed(3) + ';',
+    'PRESENTATION.UNLOCK_LIGHT_DURATION = ' + PRESENTATION.UNLOCK_LIGHT_DURATION.toFixed(3) + ';',
     'USE_BEE_POSE_SYSTEM = ' + (USE_BEE_POSE_SYSTEM ? 'true' : 'false') + ';',
     'CONFIG.GATE_WORK_REQUIRED = ' + Math.round(CONFIG.GATE_WORK_REQUIRED) + ';',
     'CONFIG.HATCHERY_BUILD_COST[1] = ' + Math.round(CONFIG.HATCHERY_BUILD_COST[1]) + ';',
@@ -1870,6 +1955,9 @@ var legacy = {
   isRequiredStructureCell: isRequiredStructureCell,
   spawnRewardBurst: spawnRewardBurst,
   setBuildingToast: setBuildingToast,
+  triggerHoneyCollectFx: triggerHoneyCollectFx,
+  triggerRewardBloom: triggerRewardBloom,
+  triggerScreenShake: triggerScreenShake,
   setBuildingsRuntime: setBuildingsRuntime,
   openCellLabelMap: openCellLabelMap,
   routeNectarToActiveCells: routeNectarToActiveCells,
@@ -1884,6 +1972,7 @@ var legacy = {
   triggerHoneyReadyFx: triggerHoneyReadyFx,
   spawnAtHive: spawnAtHive,
   setHudRuntime: setHudRuntime,
+  setScreenFxRuntime: setScreenFxRuntime,
   getCurrentSpawnCost: getCurrentSpawnCost,
   getRoyalRushStacks: getRoyalRushStacks,
   evaluateGateConditions: evaluateGateConditions,
@@ -1975,6 +2064,7 @@ var legacy = {
   updateBeePoseDebug: updateBeePoseDebug,
   updateBurstCallbacks: updateBurstCallbacks,
   updateToasts: updateToasts,
+  updateScreenFx: updateScreenFx,
   updateUI: updateUI,
   updateRoyalRush: updateRoyalRush,
   updateTimeScale: updateTimeScale,

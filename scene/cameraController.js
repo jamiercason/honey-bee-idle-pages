@@ -6,6 +6,7 @@ import { clamp01, inverseLerp, lerp, smoothstep } from '../utils/math.js';
 import { getBoardRows } from '../board/boardQueries.js';
 import { cellHasAssignableSeat, hasCellOccupants, isWorkerSeatCell } from '../board/cellState.js';
 import { isRequiredStructureCell } from '../economy/buildings.js';
+import { getScreenShakeOffset } from '../ui/screenFx.js';
 
 var stateRef = null;
 var getPointerRef = function() { return null; };
@@ -20,6 +21,9 @@ var getLastInteractYTimerRef = function() { return 0; };
 var beeDragEdgeRotateZoneFracRef = 0.14;
 var beeDragEdgeRotateDwellRef = 0.14;
 var beeDragEdgeRotateSpeedMaxRef = 1.45;
+var shakeRight = null;
+var shakeUp = null;
+var shakeTarget = null;
 
 export function setCameraControllerRuntime(runtime) {
   stateRef = runtime && runtime.state ? runtime.state : stateRef;
@@ -241,6 +245,7 @@ export function updateTimeScale(rawDt) {
 }
 
 export function updateCamera(rawDt, dt) {
+  var THREE = globalThis.THREE;
   var pointer = getPointerRef();
   var camera = getCameraRef();
   var camState = getCamStateRef();
@@ -336,5 +341,24 @@ export function updateCamera(rawDt, dt) {
     trackedCamY,
     camState.radius * sp * Math.cos(camState.theta)
   );
+  var shake = getScreenShakeOffset();
+  if (THREE && shake && (Math.abs(shake.offsetX) > 0.00001 || Math.abs(shake.offsetY) > 0.00001)) {
+    if (!shakeRight) {
+      shakeRight = new THREE.Vector3();
+      shakeUp = new THREE.Vector3();
+      shakeTarget = new THREE.Vector3();
+    }
+    camera.lookAt(camTarget);
+    camera.updateMatrixWorld();
+    shakeRight.setFromMatrixColumn(camera.matrixWorld, 0);
+    shakeUp.setFromMatrixColumn(camera.matrixWorld, 1);
+    camera.position.addScaledVector(shakeRight, shake.offsetX);
+    camera.position.addScaledVector(shakeUp, shake.offsetY);
+    shakeTarget.copy(camTarget);
+    shakeTarget.addScaledVector(shakeRight, shake.offsetX * 0.78);
+    shakeTarget.addScaledVector(shakeUp, shake.offsetY * 0.78);
+    camera.lookAt(shakeTarget);
+    return;
+  }
   camera.lookAt(camTarget);
 }

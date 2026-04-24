@@ -1,4 +1,5 @@
 import { HIVE } from '../config/hiveConfig.js';
+import { PRESENTATION } from '../config/presentationConfig.js';
 import { BEE_ROLE, BEE_STATE } from '../data/enums.js';
 import { getCellById } from '../board/boardQueries.js';
 import { easeInOut, lerp, smoothstep } from '../utils/math.js';
@@ -13,6 +14,11 @@ var getFallbackSeatForwardRef = function() { return null; };
 var getCellSurfaceNormalRef = function() { return null; };
 var getCellWorldPosRef = function() { return null; };
 var GATHER_RETURN_SPACING_DELAY_T = 0.18;
+
+function clampPresentation(value, min, max, fallback) {
+  if (value === undefined || value === null || !isFinite(value)) { return fallback; }
+  return Math.max(min, Math.min(max, value));
+}
 
 export function setBeeMovementRuntime(runtime) {
   stateRef = runtime && runtime.state ? runtime.state : null;
@@ -134,13 +140,16 @@ export function arcPosEx(fromPos, toPos, t, bumpScale, altOffset, altCurve) {
   var da = toAngle - fromAngle;
   while (da > Math.PI) { da -= Math.PI * 2; }
   while (da < -Math.PI) { da += Math.PI * 2; }
-  var angle = fromAngle + da * et;
+  var arcHeight = clampPresentation(PRESENTATION.BEE_ARC_HEIGHT, 0.2, 2.0, 1.0);
+  var sideSway = clampPresentation(PRESENTATION.BEE_ARC_SIDE_SWAY, 0, 2.0, 0.8);
+  var swayDir = Math.abs(da) > 0.02 ? (da > 0 ? 1 : -1) : (((fromPos.x * toPos.z - fromPos.z * toPos.x) >= 0) ? 1 : -1);
+  var angle = fromAngle + da * et + Math.sin(t * Math.PI) * 0.035 * sideSway * swayDir;
   var safeRadius = getBeeSafeRadius();
   var fromR = Math.max(safeRadius, Math.sqrt(fromPos.x * fromPos.x + fromPos.z * fromPos.z));
   var toR = Math.max(safeRadius, Math.sqrt(toPos.x * toPos.x + toPos.z * toPos.z));
   var straightR = fromR + (toR - fromR) * et;
-  var r = Math.max(safeRadius, straightR + Math.sin(t * Math.PI) * (HIVE.CYLINDER_RADIUS * bumpScale));
-  var y = fromPos.y + (toPos.y - fromPos.y) * et + altCurve * Math.sin(t * Math.PI) + altOffset;
+  var r = Math.max(safeRadius, straightR + Math.sin(t * Math.PI) * (HIVE.CYLINDER_RADIUS * bumpScale * arcHeight));
+  var y = fromPos.y + (toPos.y - fromPos.y) * et + altCurve * Math.sin(t * Math.PI) * arcHeight + altOffset;
   return new globalThis.THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r);
 }
 

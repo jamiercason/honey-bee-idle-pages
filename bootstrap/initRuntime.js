@@ -42,7 +42,9 @@ export function initRuntime(game, legacy, boot) {
     state: game.state,
     getCellMeshMap: function() { return game.caches.cellMeshMap; },
     getCellVisualStateMap: function() { return game.caches.cellVisualStateMap; },
-    getSimTime: function() { return game.runtime.time ? game.runtime.time.simTime : 0; }
+    getSimTime: function() { return game.runtime.time ? game.runtime.time.simTime : 0; },
+    triggerRewardBloom: legacy.triggerRewardBloom,
+    triggerScreenShake: legacy.triggerScreenShake
   });
   legacy.setLabelsRuntime({
     scene: game.scene.scene,
@@ -98,6 +100,9 @@ export function initRuntime(game, legacy, boot) {
     scene: game.scene.scene,
     camera: game.scene.camera,
     getSimTime: function() { return game.runtime.time ? game.runtime.time.simTime : 0; }
+  });
+  legacy.setScreenFxRuntime({
+    camera: game.scene.camera
   });
 
   legacy.initSceneArt();
@@ -206,7 +211,8 @@ export function initRuntime(game, legacy, boot) {
     rejectShake: legacy.rejectShake,
     flashCell: legacy.flashCell,
     markCameraInteraction: legacy.markCameraInteraction,
-    applyRoyalJellyToBee: legacy.applyRoyalJellyToBee
+    applyRoyalJellyToBee: legacy.applyRoyalJellyToBee,
+    triggerHoneyCollectFx: legacy.triggerHoneyCollectFx
   });
   legacy.setPointerControllerRuntime({
     state: game.state,

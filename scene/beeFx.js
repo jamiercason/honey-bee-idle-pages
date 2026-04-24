@@ -10,6 +10,11 @@ export var beeFxMap = {};
 var sceneRef = null;
 var beeConfigRef = null;
 
+function clampPresentation(value, min, max, fallback) {
+  if (value === undefined || value === null || !isFinite(value)) { return fallback; }
+  return Math.max(min, Math.min(max, value));
+}
+
 export function setBeeFxRuntime(runtime) {
   sceneRef = runtime && runtime.scene ? runtime.scene : sceneRef;
   beeConfigRef = runtime && runtime.beeConfig ? runtime.beeConfig : beeConfigRef;
@@ -91,13 +96,17 @@ export function updateBeeFx(bee, dt, t) {
     fx.workerSpark.visible = false;
     return;
   }
-  var trailVisible = PRESENTATION.BEE_TRAILS_ENABLED && bee.role === BEE_ROLE.GATHERER && bee.travelT < 0.995 && fade > 0.03;
+  var trailDensity = clampPresentation(PRESENTATION.BEE_TRAIL_DENSITY, 0, 1.5, 1.0);
+  var trailOpacity = clampPresentation(PRESENTATION.BEE_TRAIL_OPACITY, 0, 1.6, 1.0);
+  var isTravelling = bee.travelT < 0.995 && (bee.state === BEE_STATE.MOVING_TO_SEAT || bee.role === BEE_ROLE.GATHERER);
+  var trailVisible = PRESENTATION.BEE_TRAILS_ENABLED && isTravelling && fade > 0.03 && trailDensity > 0.01 && trailOpacity > 0.01;
+  var visibleTrailCount = Math.max(1, Math.min(fx.trailPoints.length, Math.round(fx.trailPoints.length * trailDensity)));
   var headPos = bee.mesh.position.clone();
   headPos.y += beeConfigRef.BODY_R * 0.18;
 
   for (var i = 0; i < fx.trailPoints.length; i++) {
     var tp = fx.trailPoints[i];
-    if (!trailVisible) {
+    if (!trailVisible || i >= visibleTrailCount) {
       tp.visible = false;
       continue;
     }
@@ -109,9 +118,9 @@ export function updateBeeFx(bee, dt, t) {
     tp.position.lerp(headPos, Math.min(1, dt * (7.0 - i * 0.8) * lag));
     tp.position.y += Math.sin(t * 4.0 + bee.id + i) * 0.01;
     tp.visible = true;
-    tp.material.color.setHex(bee.carryNectar > 0 ? 0xffc46a : 0xffefc1);
-    tp.material.opacity = (0.18 - i * 0.025) * fade;
-    tp.scale.setScalar((0.18 + i * 0.02) * (bee.carryNectar > 0 ? 1.15 : 1.0));
+    tp.material.color.setHex(bee.carryNectar > 0 ? 0xffc46a : (bee.state === BEE_STATE.MOVING_TO_SEAT ? 0xffdfa0 : 0xffefc1));
+    tp.material.opacity = Math.max(0, (0.18 - i * 0.025) * fade * trailOpacity);
+    tp.scale.setScalar((0.18 + i * 0.02) * (bee.carryNectar > 0 ? 1.15 : 1.0) * (bee.state === BEE_STATE.MOVING_TO_SEAT ? 0.82 : 1.0));
   }
 
   fx.cargoGlow.visible = bee.carryNectar > 0 && fade > 0.06;
@@ -138,8 +147,10 @@ export function updateBeeFx(bee, dt, t) {
   if (fx.workerSpark.visible) {
     var targetCell = getCellById(bee.workTargetCellId);
     var targetPos = targetCell ? getCellWorldPos(targetCell) : bee.pos;
-    fx.workerSpark.position.copy(headPos).lerp(targetPos, 0.28);
+    var workAttach = clampPresentation(PRESENTATION.BEE_WORK_ATTACH, 0.2, 1.8, 1.0);
+    fx.workerSpark.position.copy(headPos).lerp(targetPos, 0.28 + workAttach * 0.08);
     fx.workerSpark.position.y += 0.10 + Math.sin(t * 7.0 + bee.id) * 0.04;
-    fx.workerSpark.material.opacity = (0.10 + Math.abs(Math.sin(t * 8.0 + bee.id)) * 0.16) * (targetCell && targetCell.activationRequired > 0 ? (0.7 + saturate01(targetCell.activationProgress / targetCell.activationRequired) * 0.4) : 1.0);
+    fx.workerSpark.material.opacity = (0.10 + Math.abs(Math.sin(t * 8.0 + bee.id)) * 0.16) * workAttach * (targetCell && targetCell.activationRequired > 0 ? (0.7 + saturate01(targetCell.activationProgress / targetCell.activationRequired) * 0.4) : 1.0);
+    fx.workerSpark.scale.setScalar(0.18 + workAttach * 0.06);
   }
 }

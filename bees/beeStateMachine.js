@@ -1,5 +1,6 @@
 import { lerpAngle } from '../utils/angles.js';
 import { easeInOut, smoothstep } from '../utils/math.js';
+import { PRESENTATION } from '../config/presentationConfig.js';
 import { BEE_ROLE, BEE_STATE, CELL_STATE, CELL_TYPE } from '../data/enums.js';
 import { getCellById } from '../board/boardQueries.js';
 import { addCellOccupant, getSeatTargetIds } from '../board/cellState.js';
@@ -28,6 +29,11 @@ var updateBeeFxRef = function() {};
 var drawLineRef = function() {};
 var findChildRef = function() { return null; };
 var completeObstacleCellRef = function() {};
+
+function clampPresentation(value, min, max, fallback) {
+  if (value === undefined || value === null || !isFinite(value)) { return fallback; }
+  return Math.max(min, Math.min(max, value));
+}
 
 export function setBeeStateMachineRuntime(runtime) {
   stateRef = runtime && runtime.state ? runtime.state : null;
@@ -329,9 +335,14 @@ function updateBeeAnimationState(bee, dt) {
   bee.mesh.position.copy(bee.pos);
   bee.mesh.rotation.set(bee.mesh.rotation.x, bee.mesh.rotation.y, 0);
   var targetYaw = bee.mesh.rotation.y;
+  var faceBlend = clampPresentation(PRESENTATION.BEE_FACING_BLEND, 0.2, 2.0, 1.0);
+  var idleHover = clampPresentation(PRESENTATION.BEE_IDLE_HOVER, 0, 2.0, 1.0);
   var moveDelta = bee.pos.clone().sub(prevFlightPos);
   moveDelta.y = 0;
   var moveDistSq = moveDelta.lengthSq();
+  var targetDelta = bee.targetPos ? bee.targetPos.clone().sub(bee.pos) : moveDelta.clone();
+  targetDelta.y = 0;
+  var targetDistSq = targetDelta.lengthSq();
 
   if (bee.landedTheta !== null && pt > 0.05) {
     targetYaw = Math.atan2(Math.cos(bee.landedTheta), Math.sin(bee.landedTheta));
@@ -343,8 +354,6 @@ function updateBeeAnimationState(bee, dt) {
       var backDist = Math.sqrt(backDx * backDx + backDz * backDz);
       if (backDist > 0.01) { targetYaw = Math.atan2(backDx, backDz); }
     }
-  } else if (moveDistSq > 0.0004) {
-    targetYaw = Math.atan2(moveDelta.x, moveDelta.z);
   } else if (bee.gatherPhase === 'turning_out' && bee.targetCellId) {
     var turnCell = getCellById(bee.targetCellId);
     var moveDx = bee.targetPos.x - bee.pos.x;
@@ -360,6 +369,22 @@ function updateBeeAnimationState(bee, dt) {
     } else {
       targetYaw = moveYaw;
     }
+  } else if (bee.gatherPhase === 'delivering' && bee.targetCellId) {
+    var deliveryCell = getCellById(bee.targetCellId);
+    if (deliveryCell) {
+      var delDx = getCellWorldPosRef(deliveryCell).x - bee.pos.x;
+      var delDz = getCellWorldPosRef(deliveryCell).z - bee.pos.z;
+      var delDist = Math.sqrt(delDx * delDx + delDz * delDz);
+      if (delDist > 0.01) {
+        targetYaw = Math.atan2(delDx, delDz);
+      } else if (moveDistSq > 0.0004) {
+        targetYaw = Math.atan2(moveDelta.x, moveDelta.z);
+      }
+    }
+  } else if (moveDistSq > 0.0004) {
+    targetYaw = Math.atan2(moveDelta.x, moveDelta.z);
+  } else if (targetDistSq > 0.0004) {
+    targetYaw = Math.atan2(targetDelta.x, targetDelta.z);
   } else if (bee.travelT < 0.98) {
     var fdx = bee.targetPos.x - bee.pos.x;
     var fdz = bee.targetPos.z - bee.pos.z;
@@ -370,9 +395,13 @@ function updateBeeAnimationState(bee, dt) {
   var dyaw = targetYaw - bee.mesh.rotation.y;
   while (dyaw > Math.PI) { dyaw -= Math.PI * 2; }
   while (dyaw < -Math.PI) { dyaw += Math.PI * 2; }
-  var yawFollow = (bee.gatherPhase === 'backing_out' || bee.gatherPhase === 'turning_out') ? 5.0 : 8.0;
+  var yawFollow = ((bee.gatherPhase === 'backing_out' || bee.gatherPhase === 'turning_out') ? 5.0 : 8.0) * faceBlend;
   bee.mesh.rotation.y += dyaw * Math.min(1.0, dt * yawFollow);
   bee.mesh.rotation.x = pt * (Math.PI / 2);
+  if (pt < 0.2 && (moveDistSq > 0.0004 || targetDistSq > 0.0004)) {
+    bee.mesh.rotation.z = Math.max(-0.22, Math.min(0.22, -dyaw * 0.18 * faceBlend));
+    bee.mesh.position.y += Math.sin(simTime * 4.0 + bee.id) * 0.018 * idleHover * (1.0 - pt);
+  }
 
   var flapSpeed = 18.0 * (1.0 - pt * 0.85);
   var flapAmp = 0.55 * (1.0 - pt * 0.75);

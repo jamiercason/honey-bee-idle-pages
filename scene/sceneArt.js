@@ -1,6 +1,6 @@
 import { SCENE_ART } from '../config/sceneArtConfig.js';
 import { featherCanvasEdges, makeLayerCanvas } from '../utils/canvas.js';
-import { buildAmbientBeeTexture, buildCloudTexture, buildFlowerTexture, buildForegroundTexture, buildHorizonTexture, buildSkyTexture } from './textures.js';
+import { buildAmbientBeeTexture, buildCloudTexture, buildFlowerTexture, buildForegroundTexture, buildHorizonTexture, buildMidgroundMeadowTexture, buildSkyTexture } from './textures.js';
 
 export var sceneArt = {
   root: null,
@@ -125,6 +125,7 @@ export function buildSceneArtLayers() {
   sceneArt.groups = {};
   sceneArt.entities = {
     clouds: [],
+    midground: [],
     flowers: [],
     ambientBees: [],
     pollen: []
@@ -141,6 +142,7 @@ export function buildSceneArtLayers() {
   var skyGroup = addGroup('bgSkyGroup');
   var cloudGroup = addGroup('bgCloudGroup');
   var horizonGroup = addGroup('bgHorizonGroup');
+  var midgroundGroup = addGroup('bgMidgroundGroup');
   var flowerGroup = addGroup('bgFlowerGroup');
   var ambientBeeGroup = addGroup('bgAmbientBeeGroup');
   var foregroundGroup = addGroup('bgForegroundGroup');
@@ -153,6 +155,12 @@ export function buildSceneArtLayers() {
   sceneArt.layers.horizon = makeArtPlane(128, 54, buildHorizonTexture(), SCENE_ART.HORIZON_OPACITY);
   sceneArt.layers.horizon.position.set(0, -8.8, SCENE_ART.BG_DEPTH_HORIZON_Z);
   horizonGroup.add(sceneArt.layers.horizon);
+
+  sceneArt.layers.midground = makeArtPlane(132, 46, buildMidgroundMeadowTexture(), SCENE_ART.MIDGROUND_OPACITY);
+  sceneArt.layers.midground.position.set(0, -10.9, SCENE_ART.BG_DEPTH_MIDGROUND_Z);
+  sceneArt.layers.midground.userData.baseX = sceneArt.layers.midground.position.x;
+  sceneArt.layers.midground.userData.baseY = sceneArt.layers.midground.position.y;
+  midgroundGroup.add(sceneArt.layers.midground);
 
   for (i = 0; i < 4; i++) {
     var cloud = makeArtPlane(34 + Math.random() * 18, 14 + Math.random() * 8, buildCloudTexture(), SCENE_ART.CLOUD_OPACITY);
@@ -196,6 +204,8 @@ export function buildSceneArtLayers() {
 
   sceneArt.layers.foreground = makeArtPlane(138, 40, buildForegroundTexture(), SCENE_ART.FOREGROUND_OPACITY);
   sceneArt.layers.foreground.position.set(0, -20.8, SCENE_ART.BG_DEPTH_FOREGROUND_Z);
+  sceneArt.layers.foreground.userData.baseX = sceneArt.layers.foreground.position.x;
+  sceneArt.layers.foreground.userData.baseY = sceneArt.layers.foreground.position.y;
   foregroundGroup.add(sceneArt.layers.foreground);
   sceneArt.layers.foregroundMask = makeForegroundMaskPlane(150, 54, buildForegroundMaskTexture(), 0.0);
   sceneArt.layers.foregroundMask.position.set(0, -16.6, -18);
@@ -237,6 +247,7 @@ export function updateSceneArtLayers(rawDt, t) {
   if (sceneArt.groups.bgSkyGroup) { sceneArt.groups.bgSkyGroup.visible = SCENE_ART.ENABLED && SCENE_ART.SKY_VISIBLE; }
   if (sceneArt.groups.bgCloudGroup) { sceneArt.groups.bgCloudGroup.visible = SCENE_ART.ENABLED && SCENE_ART.CLOUD_VISIBLE; }
   if (sceneArt.groups.bgHorizonGroup) { sceneArt.groups.bgHorizonGroup.visible = SCENE_ART.ENABLED && SCENE_ART.HORIZON_VISIBLE; }
+  if (sceneArt.groups.bgMidgroundGroup) { sceneArt.groups.bgMidgroundGroup.visible = SCENE_ART.ENABLED && SCENE_ART.MIDGROUND_VISIBLE; }
   if (sceneArt.groups.bgFlowerGroup) { sceneArt.groups.bgFlowerGroup.visible = SCENE_ART.ENABLED && SCENE_ART.FLOWERS_VISIBLE; }
   if (sceneArt.groups.bgAmbientBeeGroup) { sceneArt.groups.bgAmbientBeeGroup.visible = SCENE_ART.ENABLED && SCENE_ART.AMBIENT_BEES_VISIBLE; }
   if (sceneArt.groups.bgForegroundGroup) { sceneArt.groups.bgForegroundGroup.visible = SCENE_ART.ENABLED && SCENE_ART.FOREGROUND_VISIBLE; }
@@ -244,39 +255,54 @@ export function updateSceneArtLayers(rawDt, t) {
 
   if (sceneArt.layers.sky && sceneArt.layers.sky.material) { sceneArt.layers.sky.material.opacity = SCENE_ART.SKY_OPACITY; }
   if (sceneArt.layers.horizon && sceneArt.layers.horizon.material) { sceneArt.layers.horizon.material.opacity = SCENE_ART.HORIZON_OPACITY; }
+  if (sceneArt.layers.midground && sceneArt.layers.midground.material) { sceneArt.layers.midground.material.opacity = SCENE_ART.MIDGROUND_OPACITY; }
   if (sceneArt.layers.foreground && sceneArt.layers.foreground.material) { sceneArt.layers.foreground.material.opacity = SCENE_ART.FOREGROUND_OPACITY; }
   if (sceneArt.layers.foregroundMask && sceneArt.layers.foregroundMask.material) { sceneArt.layers.foregroundMask.material.opacity = 0.0; }
+
+  var wind = Math.max(0, SCENE_ART.WIND_SWAY_INTENSITY);
+  var cloudDrift = Math.max(0, SCENE_ART.CLOUD_DRIFT_STRENGTH);
+  var swarm = Math.max(0, SCENE_ART.AMBIENT_SWARM_INTENSITY);
+  var foregroundSway = Math.max(0, SCENE_ART.FOREGROUND_SWAY_INTENSITY);
 
   for (var ci = 0; ci < sceneArt.entities.clouds.length; ci++) {
     var cloud = sceneArt.entities.clouds[ci];
     if (!cloud || !cloud.material) { continue; }
     cloud.material.opacity = SCENE_ART.CLOUD_OPACITY * (0.86 + Math.sin(t * 0.11 + cloud.userData.phase) * 0.08);
-    cloud.position.x = cloud.userData.baseX + Math.sin(t * cloud.userData.drift * 0.22 + cloud.userData.phase) * 2.8;
-    cloud.position.y = 10 + Math.sin(t * cloud.userData.drift * 0.15 + cloud.userData.phase) * 1.2;
+    cloud.position.x = cloud.userData.baseX + Math.sin(t * cloud.userData.drift * 0.22 + cloud.userData.phase) * 2.8 * cloudDrift;
+    cloud.position.y = 10 + Math.sin(t * cloud.userData.drift * 0.15 + cloud.userData.phase) * 1.2 * cloudDrift;
   }
 
   for (var fi = 0; fi < sceneArt.entities.flowers.length; fi++) {
     var flower = sceneArt.entities.flowers[fi];
     if (!flower || !flower.material) { continue; }
     flower.material.opacity = SCENE_ART.FLOWER_OPACITY * (0.76 + Math.abs(Math.sin(t * 0.18 + flower.userData.phase)) * 0.18);
-    flower.position.x = flower.userData.baseX + Math.sin(t * SCENE_ART.FLOWER_SWAY_SPEED + flower.userData.phase) * flower.userData.sway;
-    flower.position.y = flower.userData.baseY + Math.cos(t * SCENE_ART.FLOWER_SWAY_SPEED * 0.8 + flower.userData.phase) * 0.18;
+    flower.position.x = flower.userData.baseX + Math.sin(t * SCENE_ART.FLOWER_SWAY_SPEED + flower.userData.phase) * flower.userData.sway * wind;
+    flower.position.y = flower.userData.baseY + Math.cos(t * SCENE_ART.FLOWER_SWAY_SPEED * 0.8 + flower.userData.phase) * 0.18 * wind;
   }
 
   for (var ai = 0; ai < sceneArt.entities.ambientBees.length; ai++) {
     var ambient = sceneArt.entities.ambientBees[ai];
     if (!ambient || !ambient.material) { continue; }
-    ambient.material.opacity = (0.035 + Math.abs(Math.sin(t * 0.55 + ambient.userData.phase)) * 0.04) * SCENE_ART.AMBIENT_BEES_VISIBLE;
-    ambient.position.x = ambient.userData.baseX + Math.sin(t * ambient.userData.speed + ambient.userData.phase) * ambient.userData.rangeX;
-    ambient.position.y = ambient.userData.baseY + Math.cos(t * ambient.userData.speed * 1.3 + ambient.userData.phase) * ambient.userData.rangeY;
+    ambient.material.opacity = (0.035 + Math.abs(Math.sin(t * 0.55 + ambient.userData.phase)) * 0.04) * Math.max(0.2, swarm) * SCENE_ART.AMBIENT_BEES_VISIBLE;
+    ambient.position.x = ambient.userData.baseX + Math.sin(t * ambient.userData.speed + ambient.userData.phase) * ambient.userData.rangeX * swarm;
+    ambient.position.y = ambient.userData.baseY + Math.cos(t * ambient.userData.speed * 1.3 + ambient.userData.phase) * ambient.userData.rangeY * swarm;
+  }
+
+  if (sceneArt.layers.midground) {
+    sceneArt.layers.midground.position.x = sceneArt.layers.midground.userData.baseX + Math.sin(t * 0.08) * 0.55 * wind;
+    sceneArt.layers.midground.position.y = sceneArt.layers.midground.userData.baseY + Math.cos(t * 0.10) * 0.10 * wind;
+  }
+  if (sceneArt.layers.foreground) {
+    sceneArt.layers.foreground.position.x = sceneArt.layers.foreground.userData.baseX + Math.sin(t * 0.14 + 0.4) * 0.75 * foregroundSway;
+    sceneArt.layers.foreground.position.y = sceneArt.layers.foreground.userData.baseY + Math.cos(t * 0.18 + 0.7) * 0.12 * foregroundSway;
   }
 
   if (sceneArt.pollenGeo) {
     var arr = sceneArt.pollenGeo.attributes.position.array;
     var seeds = sceneArt.pollenGeo.attributes.seed.array;
     for (var i = 0; i < seeds.length; i++) {
-      arr[i * 3] += Math.sin(t * 0.4 + seeds[i]) * rawDt * SCENE_ART.POLLEN_DRIFT_X;
-      arr[i * 3 + 1] += Math.cos(t * 0.8 + seeds[i] * 1.7) * rawDt * SCENE_ART.POLLEN_DRIFT_Y;
+      arr[i * 3] += Math.sin(t * 0.4 + seeds[i]) * rawDt * SCENE_ART.POLLEN_DRIFT_X * wind;
+      arr[i * 3 + 1] += Math.cos(t * 0.8 + seeds[i] * 1.7) * rawDt * SCENE_ART.POLLEN_DRIFT_Y * wind;
       if (arr[i * 3] > 17) { arr[i * 3] = -17; }
       if (arr[i * 3] < -17) { arr[i * 3] = 17; }
     }

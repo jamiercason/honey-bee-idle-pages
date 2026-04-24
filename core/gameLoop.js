@@ -118,6 +118,7 @@ export function startGameLoop(game, legacy) {
     game.runtime.rawDt = rawDt;
     game.runtime.dt = rawDt * game.state.gameTimeScale;
     legacy.updateBurstCallbacks(rawDt);
+    if (legacy.updateScreenFx) { legacy.updateScreenFx(rawDt); }
     legacy.updateToasts(rawDt);
     updateInteractHold(game.runtime.time, rawDt);
     legacy.updateRoyalRush(rawDt);

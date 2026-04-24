@@ -1,10 +1,16 @@
 import { HIVE } from '../config/hiveConfig.js';
+import { PRESENTATION } from '../config/presentationConfig.js';
 import { BEE_STATE } from '../data/enums.js';
 import { BOARD_DIRECTIONS } from '../board/boardGraph.js';
 import { getCellById } from '../board/boardQueries.js';
 
 var beeBodyRef = null;
 var beePoseRef = null;
+
+function clampPresentation(value, min, max, fallback) {
+  if (value === undefined || value === null || !isFinite(value)) { return fallback; }
+  return Math.max(min, Math.min(max, value));
+}
 
 export function setBeePoseRuntime(runtime) {
   beeBodyRef = runtime && runtime.beeBody ? runtime.beeBody : beeBodyRef;
@@ -132,17 +138,19 @@ export function applyWorkerBeePose(bee, frame, t) {
   var thrust = 0;
   var sway = 0;
   var bob = 0;
+  var idleHover = clampPresentation(PRESENTATION.BEE_IDLE_HOVER, 0, 2.0, 1.0);
+  var workAttach = clampPresentation(PRESENTATION.BEE_WORK_ATTACH, 0.2, 1.8, 1.0);
   if (bee.state === BEE_STATE.WORKING) {
     var wc = getCellById(bee.workTargetCellId);
     var intensity = wc ? 0.5 + (wc.activationProgress / (wc.activationRequired || 1)) : 0.5;
-    thrust = Math.sin(t * 6) * beeBodyRef.WORK_THRUST_AMPLITUDE * intensity;
+    thrust = Math.sin(t * 6) * beeBodyRef.WORK_THRUST_AMPLITUDE * intensity * workAttach;
     sway = Math.sin(t * 10) * beeBodyRef.WORK_SWAY_AMPLITUDE * intensity;
     bob = Math.sin(t * 4) * beeBodyRef.WORK_BOB_AMPLITUDE * intensity;
   } else {
-    bob = Math.sin(t * 2) * beeBodyRef.WORK_BOB_AMPLITUDE * 0.3;
+    bob = Math.sin(t * 2) * beeBodyRef.WORK_BOB_AMPLITUDE * 0.3 * idleHover;
   }
 
-  base.add(frame.forward.clone().multiplyScalar(thrust + beeBodyRef.HEAD_FORWARD_OFFSET))
+  base.add(frame.forward.clone().multiplyScalar(thrust + beeBodyRef.HEAD_FORWARD_OFFSET * (bee.state === BEE_STATE.WORKING ? workAttach : 1.0)))
     .add(frame.right.clone().multiplyScalar(sway))
     .add(frame.normal.clone().multiplyScalar(bob));
 
@@ -195,9 +203,11 @@ export function buildBeePoseInput(bee) {
 }
 
 export function computeBeeWorkingAnim(input, time) {
+  var idleHover = clampPresentation(PRESENTATION.BEE_IDLE_HOVER, 0, 2.0, 1.0);
+  var workAttach = clampPresentation(PRESENTATION.BEE_WORK_ATTACH, 0.2, 1.8, 1.0);
   if (input && input.beeState === BEE_STATE.WORKING) {
     return {
-      peck: Math.sin(time * beePoseRef.WORK_PECK_SPEED) * beePoseRef.WORK_PECK_AMP,
+      peck: Math.sin(time * beePoseRef.WORK_PECK_SPEED) * beePoseRef.WORK_PECK_AMP * workAttach,
       wiggle: Math.sin(time * beePoseRef.WORK_WIGGLE_SPEED) * beePoseRef.WORK_WIGGLE_AMP,
       bob: Math.sin(time * (beePoseRef.WORK_PECK_SPEED * 0.5)) * beePoseRef.WORK_BOB_AMP
     };
@@ -205,7 +215,7 @@ export function computeBeeWorkingAnim(input, time) {
   return {
     peck: 0,
     wiggle: Math.sin(time * (beePoseRef.IDLE_BREATH_SPEED * 0.6)) * (beePoseRef.WORK_WIGGLE_AMP * 0.22),
-    bob: Math.sin(time * beePoseRef.IDLE_BREATH_SPEED) * beePoseRef.IDLE_BREATH_AMP
+    bob: Math.sin(time * beePoseRef.IDLE_BREATH_SPEED) * beePoseRef.IDLE_BREATH_AMP * idleHover
   };
 }
 
@@ -243,7 +253,7 @@ export function computeBeePose(input, time) {
   var anim = computeBeeWorkingAnim(input, time);
   var headTargetOffset = beePoseRef.TARGET_EDGE_OFFSET;
   if (input.beeState === BEE_STATE.WORKING) {
-    headTargetOffset += beePoseRef.WORK_TARGET_HEAD_BIAS;
+    headTargetOffset += beePoseRef.WORK_TARGET_HEAD_BIAS * clampPresentation(PRESENTATION.BEE_WORK_ATTACH, 0.2, 1.8, 1.0);
   }
   var baseForwardOffset = headTargetOffset - beePoseRef.HEAD_TO_CENTER - beePoseRef.BODY_BACKSET;
   var bodyPos = anchorPos.clone()
